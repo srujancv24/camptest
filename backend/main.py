@@ -59,15 +59,6 @@ ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_HOURS", "24")
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 DATABASE_PATH = os.getenv("DATABASE_PATH", "campscout.db")
 
-# Railway-specific configuration
-RAILWAY_ENVIRONMENT = os.getenv("RAILWAY_ENVIRONMENT")
-RAILWAY_PROJECT_ID = os.getenv("RAILWAY_PROJECT_ID")
-PORT = 8000
-
-logger.warning(f"Railway Environment: {RAILWAY_ENVIRONMENT}")
-logger.warning(f"Railway Project ID: {RAILWAY_PROJECT_ID}")
-logger.warning(f"Port: {PORT}")
-
 # CORS Configuration with better error handling
 try:
     # Hardcode CORS origins as a list for testing
@@ -125,13 +116,9 @@ async def railway_cors_override(request, call_next):
             "Access-Control-Allow-Credentials": "false",
             "Vary": "Origin",
             "Content-Length": "0",
-            # Try Railway-specific headers to control proxy behavior
+            # Try Railway-specific headers
             "X-Railway-CORS": "enabled",
-            "X-Railway-Proxy-Override": "true",
-            "X-Forwarded-Proto": "https",
-            "X-Real-IP": "proxy",
-            # Try to signal that we're handling CORS ourselves
-            "X-Custom-CORS": "handled-by-app"
+            "X-Forwarded-Proto": "https"
         }
         
         for key, value in cors_headers.items():
