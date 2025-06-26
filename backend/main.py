@@ -1,7 +1,7 @@
 """
 CampScout API Backend using camply library
 """
-from fastapi import FastAPI, HTTPException, Depends, status, Query, Response
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
@@ -82,43 +82,71 @@ logger.info(f"Final CORS allowed origins: {CORS_ORIGINS}")
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-# Configure CORS with explicit debugging
-logger.warning(f"Setting up CORS middleware with origins: {CORS_ORIGINS}")
-# Temporarily disable FastAPI CORS middleware to test custom implementation
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=CORS_ORIGINS,
-#     allow_credentials=True,
-#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-#     allow_headers=["*"],
-# )
+# DISABLE ALL CORS MIDDLEWARE - handle it manually
+logger.warning(f"CORS DISABLED - handling manually to override Railway")
 
-# Add a custom CORS handler to ensure our settings work
+# Try multiple approaches to override Railway's CORS
 @app.middleware("http")
-async def cors_handler(request, call_next):
-    origin = request.headers.get("origin")
-    logger.warning(f"Request from origin: {origin}, method: {request.method}, path: {request.url.path}")
+async def railway_cors_override(request, call_next):
+    origin = request.headers.get("origin", "")
+    logger.warning(f"RAILWAY CORS: Request from origin: {origin}, method: {request.method}, path: {request.url.path}")
+    logger.warning(f"RAILWAY CORS: All request headers: {dict(request.headers)}")
     
-    # Handle preflight requests
+    # Handle preflight requests with maximum compatibility
     if request.method == "OPTIONS":
-        response = Response()
-        response.headers["Access-Control-Allow-Origin"] = "https://campscout-demo.surge.sh"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, Origin, X-Requested-With"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Max-Age"] = "86400"
-        logger.warning(f"Handling OPTIONS preflight request from origin: {origin}")
+        logger.warning(f"RAILWAY CORS: Handling OPTIONS preflight from: {origin}")
+        
+        # Try to create the most permissive response possible
+        response = Response(
+            content="",
+            status_code=200,
+            media_type="text/plain"
+        )
+        
+        # Set multiple variations of CORS headers to ensure one works
+        cors_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "access-control-allow-origin": "*",
+            "ACCESS-CONTROL-ALLOW-ORIGIN": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
+            "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
+            "Access-Control-Allow-Headers": "*",
+            "access-control-allow-headers": "*",
+            "Access-Control-Max-Age": "86400",
+            "Access-Control-Allow-Credentials": "false",
+            "Vary": "Origin",
+            "Content-Length": "0",
+            # Try Railway-specific headers
+            "X-Railway-CORS": "enabled",
+            "X-Forwarded-Proto": "https"
+        }
+        
+        for key, value in cors_headers.items():
+            response.headers[key] = value
+        
+        logger.warning(f"RAILWAY CORS: OPTIONS response headers: {dict(response.headers)}")
         return response
     
-    # Process the request
+    # Process normal requests
     response = await call_next(request)
     
-    # Add CORS headers to all responses
-    response.headers["Access-Control-Allow-Origin"] = "https://campscout-demo.surge.sh"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Expose-Headers"] = "Content-Length, Content-Type"
+    # Log original response headers
+    logger.warning(f"RAILWAY CORS: Original response headers: {dict(response.headers)}")
     
-    logger.warning(f"Added CORS headers to response for {request.method} {request.url.path}")
+    # Force CORS headers on all responses with multiple variations
+    cors_response_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "access-control-allow-origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Expose-Headers": "*",
+        "Vary": "Origin"
+    }
+    
+    for key, value in cors_response_headers.items():
+        response.headers[key] = value
+    
+    logger.warning(f"RAILWAY CORS: Final response headers: {dict(response.headers)}")
     return response
 
 # Security
@@ -312,14 +340,22 @@ async def health_check():
     }
 
 @app.get("/api/cors-test")
-async def cors_test():
+async def cors_test(request):
     """Test CORS configuration"""
     logger.warning("CORS test endpoint called")
     return {
         "message": "CORS is working!",
         "timestamp": datetime.now().isoformat(),
-        "cors_origins": CORS_ORIGINS
+        "cors_origins": CORS_ORIGINS,
+        "request_origin": request.headers.get("origin"),
+        "request_headers": dict(request.headers)
     }
+
+@app.options("/api/cors-test")
+async def cors_test_options():
+    """Handle preflight for CORS test"""
+    logger.warning("CORS test OPTIONS called")
+    return {"message": "OPTIONS handled"}
 
 # Authentication endpoints
 @app.post("/api/auth/register")
