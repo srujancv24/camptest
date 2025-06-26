@@ -27,7 +27,7 @@ jobs:
       working-directory: ./frontend
       run: npm run build
       env:
-        VITE_API_URL: https://campscout-backend-demo.railway.app
+        VITE_API_URL: https://campscout-up-demo.railway.app
         NODE_OPTIONS: --max_old_space_size=4096
     
     - name: Deploy to GitHub Pages

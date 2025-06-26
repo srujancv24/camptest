@@ -108,6 +108,17 @@ The backend provides the following API endpoints:
 - `GET /api/health` - Detailed health check
 - `POST /api/search` - Search for available campsites
 - `GET /api/recreation-areas` - Get list of recreation areas
+- `POST /api/rec-areas` - Search for recreation areas by name/state
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/me` - Get current user info (requires auth)
+- `GET /api/dashboard/stats` - Public dashboard statistics
+- `GET /api/campgrounds/{campground_id}/availability` - Get availability for a campground
+- `POST /api/campgrounds/{campground_id}/availability` - Check availability (with body)
+- `POST /api/campgrounds/{campground_id}/alerts` - Create an alert (requires auth)
+- `GET /api/campgrounds/alerts` - Get all alerts for current user (requires auth)
+- `PATCH /api/campgrounds/alerts/{alert_id}` - Update an alert (requires auth)
+- `DELETE /api/campgrounds/alerts/{alert_id}` - Delete an alert (requires auth)
 
 ### Example API Usage
 
