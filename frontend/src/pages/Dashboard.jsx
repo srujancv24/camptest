@@ -93,24 +93,35 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
             {/* Navigation */}
-            <nav className="bg-white shadow-sm border-b">
+            <nav className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 shadow-lg">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
-                        <div className="flex items-center">
-                            <h1 className="text-xl font-bold text-gray-900">🏕️ CampScout</h1>
+                    <div className="flex justify-between items-center h-20">
+                        {/* Left spacer for centering on desktop */}
+                        <div className="hidden md:flex flex-1"></div>
+
+                        {/* Centered Logo/Title */}
+                        <div className="flex items-center justify-center flex-1 md:flex-none">
+                            <button
+                                onClick={() => setActiveTab('search')}
+                                className="flex items-center space-x-2 sm:space-x-3 text-white hover:text-emerald-100 transition-all duration-300 transform hover:scale-105 group"
+                            >
+                                <div className="text-2xl sm:text-3xl group-hover:animate-bounce">🏕️</div>
+                                <h1 className="text-xl sm:text-2xl font-bold tracking-wide">CampScout</h1>
+                            </button>
                         </div>
 
-                        <div className="flex items-center space-x-4">
+                        {/* Right side user info */}
+                        <div className="flex-1 flex items-center justify-end space-x-2 sm:space-x-4">
                             {isAuthenticated ? (
                                 <>
-                                    <span className="text-sm text-gray-700">
-                                        Welcome, {user?.first_name}!
+                                    <span className="hidden sm:inline text-xs sm:text-sm text-emerald-100 bg-white/10 px-2 sm:px-3 py-1 rounded-full backdrop-blur-sm">
+                                        Welcome, {user?.first_name}! 👋
                                     </span>
                                     <button
                                         onClick={logout}
-                                        className="text-sm text-gray-500 hover:text-gray-700 transition duration-150"
+                                        className="text-xs sm:text-sm text-white hover:text-emerald-100 bg-white/10 hover:bg-white/20 px-3 sm:px-4 py-2 rounded-full transition-all duration-200 backdrop-blur-sm"
                                     >
                                         Logout
                                     </button>
@@ -118,9 +129,10 @@ const Dashboard = () => {
                             ) : (
                                 <a
                                     href="/auth"
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition duration-150"
+                                    className="bg-white text-emerald-600 px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-semibold hover:bg-emerald-50 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
                                 >
-                                    Login / Register
+                                    <span className="hidden sm:inline">Login / Register</span>
+                                    <span className="sm:hidden">Login</span>
                                 </a>
                             )}
                         </div>
@@ -132,71 +144,97 @@ const Dashboard = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Welcome Section */}
                 <div className="mb-8">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        {isAuthenticated
-                            ? `Welcome to your CampScout Dashboard! 🎉`
-                            : `Welcome to CampScout! 🏕️`
-                        }
-                    </h2>
-                    <p className="text-gray-600">
-                        {isAuthenticated
-                            ? "Your campsite availability monitoring center"
-                            : "Find and monitor campsite availability across recreational areas"
-                        }
-                    </p>
-                    {!isAuthenticated && (
-                        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-blue-800 text-sm">
-                                💡 <strong>Tip:</strong> Create an account to set up alerts and save your favorite campgrounds!
+                    <div className="bg-gradient-to-r from-white via-emerald-50 to-teal-50 rounded-2xl shadow-lg p-8 border border-emerald-100">
+                        <div className={isAuthenticated ? "" : "flex flex-col items-center justify-center text-center"}>
+                            <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3">
+                                {isAuthenticated
+                                    ? `Welcome to your CampScout Dashboard! 🎉`
+                                    : `Welcome to CampScout! 🏕️`
+                                }
+                            </h2>
+                            <p className="text-gray-700 text-lg">
+                                {isAuthenticated
+                                    ? "Your campsite availability monitoring center"
+                                    : (
+                                        <>
+                                            Discover and book the perfect campsite for your next outdoor adventure.<br />
+                                            Search thousands of campsites across the United States.
+                                        </>
+                                    )
+                                }
                             </p>
                         </div>
-                    )}
+                        {!isAuthenticated && (
+                            <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-sm">
+                                <p className="text-blue-800 text-sm flex items-center space-x-2">
+                                    <span className="text-xl">💡</span>
+                                    <span><strong>Tip:</strong> Create an account to set up alerts and save your favorite campgrounds!</span>
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="border-b border-gray-200 mb-8">
-                    <nav className="-mb-px flex space-x-8">
-                        <button
-                            onClick={() => setActiveTab('search')}
-                            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'search'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                        >
-                            🔍 Search Campgrounds
-                        </button>
-                        {isAuthenticated && (
+                <div className="mb-8">
+                    <div className="bg-white rounded-xl shadow-md p-2">
+                        <nav className="flex flex-wrap gap-2">
                             <button
-                                onClick={() => setActiveTab('alerts')}
-                                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'alerts'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                onClick={() => setActiveTab('search')}
+                                className={`flex items-center space-x-2 px-4 sm:px-6 py-3 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 transform hover:scale-105 ${activeTab === 'search'
+                                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
+                                    : 'text-gray-600 hover:text-emerald-600 hover:bg-emerald-50'
                                     }`}
                             >
-                                🔔 My Alerts ({stats.watchedCampsites})
+                                <span className="text-lg">🔍</span>
+                                <span>Search Campgrounds</span>
                             </button>
-                        )}
-                        <button
-                            onClick={() => setActiveTab('results')}
-                            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'results'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                        >
-                            📋 Search Results {searchResults.length > 0 ? `(${searchResults.length})` : ''}
-                        </button>
-                        {isAuthenticated && (
+                            {isAuthenticated && (
+                                <button
+                                    onClick={() => setActiveTab('alerts')}
+                                    className={`flex items-center space-x-2 px-4 sm:px-6 py-3 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 transform hover:scale-105 ${activeTab === 'alerts'
+                                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg'
+                                        : 'text-gray-600 hover:text-amber-600 hover:bg-amber-50'
+                                        }`}
+                                >
+                                    <span className="text-lg">🔔</span>
+                                    <span>My Alerts</span>
+                                    {stats.watchedCampsites > 0 && (
+                                        <span className="bg-white/20 text-xs px-2 py-1 rounded-full">
+                                            {stats.watchedCampsites}
+                                        </span>
+                                    )}
+                                </button>
+                            )}
                             <button
-                                onClick={() => setActiveTab('profile')}
-                                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'profile'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                onClick={() => setActiveTab('results')}
+                                className={`flex items-center space-x-2 px-4 sm:px-6 py-3 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 transform hover:scale-105 ${activeTab === 'results'
+                                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                                    : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
                                     }`}
                             >
-                                👤 Profile
+                                <span className="text-lg">📋</span>
+                                <span>Search Results</span>
+                                {searchResults.length > 0 && (
+                                    <span className="bg-white/20 text-xs px-2 py-1 rounded-full">
+                                        {searchResults.length}
+                                    </span>
+                                )}
                             </button>
-                        )}
-                    </nav>
+                            {isAuthenticated && (
+                                <button
+                                    onClick={() => setActiveTab('profile')}
+                                    className={`flex items-center space-x-2 px-4 sm:px-6 py-3 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 transform hover:scale-105 ${activeTab === 'profile'
+                                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                                        : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50'
+                                        }`}
+                                >
+                                    <span className="text-lg">👤</span>
+                                    <span>Profile</span>
+                                </button>
+                            )}
+                        </nav>
+                    </div>
                 </div>
 
                 {/* Tab Content */}
@@ -324,48 +362,48 @@ const Dashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {isAuthenticated ? (
                         <>
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0">
-                                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-sm">🏕️</span>
+                                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                            <span className="text-2xl">🏕️</span>
                                         </div>
                                     </div>
                                     <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-500">Watched Campsites</p>
-                                        <p className="text-2xl font-semibold text-gray-900">
+                                        <p className="text-sm font-medium text-emerald-100">Watched Campsites</p>
+                                        <p className="text-3xl font-bold text-white">
                                             {statsLoading ? <Loading size="small" /> : stats.watchedCampsites}
                                         </p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                            <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0">
-                                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-sm">🔔</span>
+                                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                            <span className="text-2xl">🔔</span>
                                         </div>
                                     </div>
                                     <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-500">Notifications Sent</p>
-                                        <p className="text-2xl font-semibold text-gray-900">
+                                        <p className="text-sm font-medium text-amber-100">Notifications Sent</p>
+                                        <p className="text-3xl font-bold text-white">
                                             {statsLoading ? <Loading size="small" /> : stats.notificationsSent}
                                         </p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                            <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0">
-                                        <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-sm">✅</span>
+                                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                            <span className="text-2xl">✅</span>
                                         </div>
                                     </div>
                                     <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-500">Successful Bookings</p>
-                                        <p className="text-2xl font-semibold text-gray-900">
+                                        <p className="text-sm font-medium text-purple-100">Successful Bookings</p>
+                                        <p className="text-3xl font-bold text-white">
                                             {statsLoading ? <Loading size="small" /> : stats.successfulBookings}
                                         </p>
                                     </div>
@@ -374,47 +412,47 @@ const Dashboard = () => {
                         </>
                     ) : (
                         <>
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0">
-                                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-sm">🏕️</span>
+                                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                            <span className="text-2xl">🏕️</span>
                                         </div>
                                     </div>
                                     <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-500">Available Campgrounds</p>
-                                        <p className="text-2xl font-semibold text-gray-900">418+</p>
-                                        <p className="text-xs text-gray-400">California campgrounds</p>
+                                        <p className="text-sm font-medium text-blue-100">Available Campgrounds</p>
+                                        <p className="text-3xl font-bold text-white">418+</p>
+                                        <p className="text-xs text-blue-200">California campgrounds</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0">
-                                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-sm">🔍</span>
+                                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                            <span className="text-2xl">🔍</span>
                                         </div>
                                     </div>
                                     <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-500">Real-Time Search</p>
-                                        <p className="text-2xl font-semibold text-gray-900">Live</p>
-                                        <p className="text-xs text-gray-400">Recreation.gov data</p>
+                                        <p className="text-sm font-medium text-emerald-100">Real-Time Search</p>
+                                        <p className="text-3xl font-bold text-white">Live</p>
+                                        <p className="text-xs text-emerald-200">Recreation.gov data</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                            <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0">
-                                        <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-sm">🎯</span>
+                                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                            <span className="text-2xl">🎯</span>
                                         </div>
                                     </div>
                                     <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-500">Success Rate</p>
-                                        <p className="text-2xl font-semibold text-gray-900">80%</p>
-                                        <p className="text-xs text-gray-400">Find availability</p>
+                                        <p className="text-sm font-medium text-rose-100">Success Rate</p>
+                                        <p className="text-3xl font-bold text-white">80%</p>
+                                        <p className="text-xs text-rose-200">Find availability</p>
                                     </div>
                                 </div>
                             </div>
