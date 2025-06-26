@@ -372,46 +372,55 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     return {"user": user_response}
 
 # Helper function to search campgrounds using camply
-async def search_campgrounds_with_camply(
-    location: str = "",
-    state: str = None,
-    activity: str = "",
-    start_date: str = "",
-    end_date: str = "",
-    nights: int = 1,
-    weekend_only: bool = False,
-    limit: int = 20,
-    rec_area_ids: Optional[List[str]] = None
-) -> List[CampsiteInfo]:
-    """Search for campgrounds using camply library with advanced filters"""
+async def search_campgrounds_with_camply(location: str, state: str = None) -> List[CampsiteInfo]:
+    """Search for campgrounds using camply library"""
     try:
         provider = RecreationDotGov()
-        # Use rec_area_ids if provided
-        if rec_area_ids:
-            campgrounds = []
-            for rec_id in rec_area_ids:
-                campgrounds += provider.find_campgrounds(rec_area_id=[int(rec_id)])
-        elif state:
+        
+        # Search for campgrounds
+        if state:
             campgrounds = provider.find_campgrounds(state=state.upper())
         else:
-            campgrounds = provider.find_campgrounds(state="CA")  # Default to CA
-        # Filter by location, activity, and other filters
-        filtered_campgrounds = []
-        for cg in campgrounds:
-            facility_name_lower = cg.facility_name.lower()
-            description_lower = getattr(cg, 'description', '').lower() if hasattr(cg, 'description') else ''
-            recreation_area_lower = getattr(cg, 'recreation_area', '').lower() if hasattr(cg, 'recreation_area') else ''
-            # Location filter
-            location_match = location.lower() in facility_name_lower or location.lower() in description_lower or location.lower() in recreation_area_lower if location else True
-            # Activity filter
-            activity_match = activity.lower() in (','.join(getattr(cg, 'activities', [])).lower()) if activity else True
-            if location_match and activity_match:
-                filtered_campgrounds.append(cg)
-        campgrounds = filtered_campgrounds
-        # TODO: Add date, nights, and weekend_only filtering if needed (requires more advanced logic)
-        # Convert to CampsiteInfo
+            # If no state specified, try to extract from location or default to popular states
+            campgrounds = provider.find_campgrounds(state="CA")  # Default to CA for now
+        
+        # Filter by location if specified (more flexible matching)
+        if location:
+            location_lower = location.lower()
+            # Create search terms from location
+            search_terms = location_lower.split()
+            
+            filtered_campgrounds = []
+            for cg in campgrounds:
+                facility_name_lower = cg.facility_name.lower()
+                description_lower = getattr(cg, 'description', '').lower() if hasattr(cg, 'description') else ''
+                recreation_area_lower = getattr(cg, 'recreation_area', '').lower() if hasattr(cg, 'recreation_area') else ''
+                
+                # Check if any search term matches facility name, description, or recreation area
+                match_found = False
+                for term in search_terms:
+                    if (term in facility_name_lower or 
+                        term in description_lower or
+                        term in recreation_area_lower):
+                        match_found = True
+                        break
+                
+                # Special handling for common park/location names
+                if not match_found:
+                    # Check for national park searches
+                    if 'national' in search_terms and 'park' in search_terms and 'national park' in recreation_area_lower:
+                        match_found = True
+                    elif 'park' in search_terms and 'park' in recreation_area_lower:
+                        match_found = True
+                
+                if match_found:
+                    filtered_campgrounds.append(cg)
+            
+            campgrounds = filtered_campgrounds
+        
+        # Convert to our CampsiteInfo format
         campsite_infos = []
-        for cg in campgrounds[:limit]:
+        for cg in campgrounds[:20]:  # Limit to 20 results
             campsite_info = CampsiteInfo(
                 id=str(cg.facility_id),
                 name=cg.facility_name,
@@ -427,12 +436,49 @@ async def search_campgrounds_with_camply(
                 recreation_gov_id=str(cg.facility_id)
             )
             campsite_infos.append(campsite_info)
+        
         return campsite_infos
+        
     except Exception as e:
         logger.error(f"Error in camply search: {str(e)}")
+        # Return empty list on error rather than failing completely
         return []
 
 # Campground search endpoints
+# State name and abbreviation mapping
+STATE_ABBREVIATIONS = {
+    'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR', 'CALIFORNIA': 'CA',
+    'COLORADO': 'CO', 'CONNECTICUT': 'CT', 'DELAWARE': 'DE', 'FLORIDA': 'FL', 'GEORGIA': 'GA',
+    'HAWAII': 'HI', 'IDAHO': 'ID', 'ILLINOIS': 'IL', 'INDIANA': 'IN', 'IOWA': 'IA',
+    'KANSAS': 'KS', 'KENTUCKY': 'KY', 'LOUISIANA': 'LA', 'MAINE': 'ME', 'MARYLAND': 'MD',
+    'MASSACHUSETTS': 'MA', 'MICHIGAN': 'MI', 'MINNESOTA': 'MN', 'MISSISSIPPI': 'MS', 'MISSOURI': 'MO',
+    'MONTANA': 'MT', 'NEBRASKA': 'NE', 'NEVADA': 'NV', 'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ',
+    'NEW MEXICO': 'NM', 'NEW YORK': 'NY', 'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', 'OHIO': 'OH',
+    'OKLAHOMA': 'OK', 'OREGON': 'OR', 'PENNSYLVANIA': 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
+    'SOUTH DAKOTA': 'SD', 'TENNESSEE': 'TN', 'TEXAS': 'TX', 'UTAH': 'UT', 'VERMONT': 'VT',
+    'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV', 'WISCONSIN': 'WI', 'WYOMING': 'WY'
+}
+# National Parks and Rec Areas to state mapping (partial, add more as needed)
+NATIONAL_PARKS_TO_STATE = {
+    'YELLOWSTONE NATIONAL PARK': 'WY',
+    'YOSEMITE NATIONAL PARK': 'CA',
+    'GRAND CANYON NATIONAL PARK': 'AZ',
+    'ZION NATIONAL PARK': 'UT',
+    'GREAT SMOKY MOUNTAINS NATIONAL PARK': 'TN',
+    'ROCKY MOUNTAIN NATIONAL PARK': 'CO',
+    'ACADIA NATIONAL PARK': 'ME',
+    'OLYMPIC NATIONAL PARK': 'WA',
+    'GLACIER NATIONAL PARK': 'MT',
+    'JOSHUA TREE NATIONAL PARK': 'CA',
+    # ... add more as needed ...
+}
+RECREATION_AREAS_TO_STATE = {
+    'LAKE TAHOE': 'CA',
+    'LAKE POWELL': 'UT',
+    'LAKE MEAD': 'NV',
+    'SHASTA LAKE': 'CA',
+    # ... add more as needed ...
+}
 @app.post("/api/search")
 async def search_campsites(request: CampsiteSearchRequest):
     """
@@ -440,27 +486,55 @@ async def search_campsites(request: CampsiteSearchRequest):
     """
     try:
         logger.info(f"Searching campsites for location: {request.location}")
-        
-        # Extract state from location if possible
         state = None
-        if request.location:
-            # Simple state extraction (you could make this more sophisticated)
-            location_upper = request.location.upper()
-            if "CA" in location_upper or "CALIFORNIA" in location_upper:
-                state = "CA"
-            elif "WA" in location_upper or "WASHINGTON" in location_upper:
-                state = "WA"
-            elif "OR" in location_upper or "OREGON" in location_upper:
-                state = "OR"
-            # Add more states as needed
-        
-        # Search using camply
-        campsites = await search_campgrounds_with_camply(request.location or "", state)
-        
-        # If no results from camply, provide some fallback data
-        if not campsites:
+        location_upper = (request.location or '').strip().upper()
+        # Try to extract state from location
+        if location_upper in STATE_ABBREVIATIONS:
+            state = STATE_ABBREVIATIONS[location_upper]
+        elif location_upper in STATE_ABBREVIATIONS.values():
+            state = location_upper
+        elif location_upper in NATIONAL_PARKS_TO_STATE:
+            state = NATIONAL_PARKS_TO_STATE[location_upper]
+        elif location_upper in RECREATION_AREAS_TO_STATE:
+            state = RECREATION_AREAS_TO_STATE[location_upper]
+        else:
+            # Try to find state by partial match
+            for k, v in STATE_ABBREVIATIONS.items():
+                if k in location_upper or v in location_upper:
+                    state = v
+                    break
+            if not state:
+                for k, v in NATIONAL_PARKS_TO_STATE.items():
+                    if k in location_upper:
+                        state = v
+                        break
+            if not state:
+                for k, v in RECREATION_AREAS_TO_STATE.items():
+                    if k in location_upper:
+                        state = v
+                        break
+        logger.info(f"Extracted state: {state}")
+        # If no state found, broaden search (e.g., search CA, OR, WA, CO, UT, AZ, NY, etc.)
+        states_to_try = [state] if state else ['CA', 'OR', 'WA', 'CO', 'UT', 'AZ', 'NY', 'TX', 'FL', 'MT', 'WY', 'ID', 'NV', 'NM', 'NC', 'TN', 'GA', 'VA', 'PA', 'MI', 'MN', 'WI', 'MO', 'AR', 'SD', 'ND', 'KY', 'OK', 'AL', 'SC', 'LA', 'MD', 'MA', 'NH', 'VT', 'ME', 'AK', 'HI']
+        all_campsites = []
+        for st in states_to_try:
+            campsites = await search_campgrounds_with_camply(request.location or "", st)
+            if campsites:
+                all_campsites.extend(campsites)
+            # If we found enough, break
+            if len(all_campsites) >= (request.limit or 20):
+                break
+        # Remove duplicates by id
+        seen = set()
+        unique_campsites = []
+        for cg in all_campsites:
+            if cg.id not in seen:
+                unique_campsites.append(cg)
+                seen.add(cg.id)
+        # If still no results, fallback
+        if not unique_campsites:
             logger.warning("No campsites found via camply, using fallback data")
-            campsites = [
+            unique_campsites = [
                 CampsiteInfo(
                     id="fallback-1",
                     name="Popular Campground",
@@ -476,14 +550,12 @@ async def search_campsites(request: CampsiteSearchRequest):
                     recreation_gov_id=""
                 )
             ]
-        
         return {
             "success": True,
-            "data": campsites,
-            "total_count": len(campsites),
+            "data": unique_campsites[:request.limit or 20],
+            "total_count": len(unique_campsites),
             "source": "recreation.gov via camply"
         }
-        
     except Exception as e:
         logger.error(f"Error searching campsites: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error searching campsites: {str(e)}")

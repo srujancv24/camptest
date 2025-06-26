@@ -563,6 +563,20 @@ const CampgroundSearch = ({ onSearchResults }) => {
                             </p>
                         </div>
                     </div>
+                    {/* Weekend Only Checkbox */}
+                    <div className="flex items-center mb-2">
+                        <input
+                            type="checkbox"
+                            id="weekend_only"
+                            name="weekend_only"
+                            checked={searchParams.weekend_only}
+                            onChange={handleInputChange}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="weekend_only" className="ml-2 block text-sm text-gray-700">
+                            🎉 Weekend Only (Show only weekends in results)
+                        </label>
+                    </div>
                     {/* Live Date Range Feedback */}
                     {dateInfo.dateRange && (
                         <div className="bg-white p-3 rounded-md border border-blue-300 mt-2">
@@ -583,89 +597,6 @@ const CampgroundSearch = ({ onSearchResults }) => {
                             </div>
                         </div>
                     )}
-                </div>
-
-                {/* Advanced Search Options */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h3 className="text-lg font-medium text-gray-900 mb-3">🎯 Advanced Options</h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        {/* Site Type */}
-                        <div>
-                            <label htmlFor="site_type" className="block text-sm font-medium text-gray-700 mb-1">
-                                🏕️ Site Type
-                            </label>
-                            <select
-                                id="site_type"
-                                name="site_type"
-                                value={searchParams.site_type}
-                                onChange={handleInputChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                                <option value="">Any Site Type</option>
-                                <option value="tent">⛺ Tent Sites</option>
-                                <option value="rv">🚐 RV Sites</option>
-                                <option value="cabin">🏠 Cabins</option>
-                                <option value="group">👥 Group Sites</option>
-                                <option value="backcountry">🥾 Backcountry</option>
-                                <option value="equestrian">🐎 Equestrian</option>
-                            </select>
-                        </div>
-
-                        {/* Party Size */}
-                        <div>
-                            <label htmlFor="party_size" className="block text-sm font-medium text-gray-700 mb-1">
-                                👥 Party Size
-                            </label>
-                            <select
-                                id="party_size"
-                                name="party_size"
-                                value={searchParams.party_size}
-                                onChange={handleInputChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                                <option value="1">1 person</option>
-                                <option value="2">2 people</option>
-                                <option value="3">3 people</option>
-                                <option value="4">4 people</option>
-                                <option value="5">5 people</option>
-                                <option value="6">6 people</option>
-                                <option value="8">8+ people</option>
-                                <option value="10">10+ people (Group)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Checkboxes for special options */}
-                    <div className="space-y-3">
-                        <div className="flex items-center">
-                            <input
-                                type="checkbox"
-                                id="weekend_only"
-                                name="weekend_only"
-                                checked={searchParams.weekend_only}
-                                onChange={handleInputChange}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor="weekend_only" className="ml-2 block text-sm text-gray-900">
-                                🎉 Weekends Only (Friday-Sunday arrivals)
-                            </label>
-                        </div>
-
-                        <div className="flex items-center">
-                            <input
-                                type="checkbox"
-                                id="accessibility"
-                                name="accessibility"
-                                checked={searchParams.accessibility}
-                                onChange={handleInputChange}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor="accessibility" className="ml-2 block text-sm text-gray-900">
-                                ♿ Accessible Sites Only
-                            </label>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Enhanced Search Controls */}
