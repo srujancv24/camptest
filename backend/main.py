@@ -1,7 +1,7 @@
 """
 CampScout API Backend using camply library
 """
-from fastapi import FastAPI, HTTPException, Depends, status, Query
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
@@ -82,14 +82,44 @@ logger.info(f"Final CORS allowed origins: {CORS_ORIGINS}")
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configure CORS with explicit debugging
+logger.warning(f"Setting up CORS middleware with origins: {CORS_ORIGINS}")
+# Temporarily disable FastAPI CORS middleware to test custom implementation
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=CORS_ORIGINS,
+#     allow_credentials=True,
+#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+#     allow_headers=["*"],
+# )
+
+# Add a custom CORS handler to ensure our settings work
+@app.middleware("http")
+async def cors_handler(request, call_next):
+    origin = request.headers.get("origin")
+    logger.warning(f"Request from origin: {origin}, method: {request.method}, path: {request.url.path}")
+    
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        response = Response()
+        response.headers["Access-Control-Allow-Origin"] = "https://campscout-demo.surge.sh"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, Origin, X-Requested-With"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Max-Age"] = "86400"
+        logger.warning(f"Handling OPTIONS preflight request from origin: {origin}")
+        return response
+    
+    # Process the request
+    response = await call_next(request)
+    
+    # Add CORS headers to all responses
+    response.headers["Access-Control-Allow-Origin"] = "https://campscout-demo.surge.sh"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Expose-Headers"] = "Content-Length, Content-Type"
+    
+    logger.warning(f"Added CORS headers to response for {request.method} {request.url.path}")
+    return response
 
 # Security
 security = HTTPBearer()
@@ -279,6 +309,16 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "service": "campscout-api"
+    }
+
+@app.get("/api/cors-test")
+async def cors_test():
+    """Test CORS configuration"""
+    logger.warning("CORS test endpoint called")
+    return {
+        "message": "CORS is working!",
+        "timestamp": datetime.now().isoformat(),
+        "cors_origins": CORS_ORIGINS
     }
 
 # Authentication endpoints
