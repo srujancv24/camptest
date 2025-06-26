@@ -10,15 +10,23 @@ import asyncio
 from datetime import datetime, date, timedelta
 import logging
 import jwt
-import hashlib
+import bcrypt
 import secrets
 import uuid
 import sqlite3
 import os
 from contextlib import contextmanager
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Import camply for real campsite data
 from camply import RecreationDotGov, SearchRecreationDotGov, SearchWindow
+
+class RecAreaSearchRequest(BaseModel):
+    search_string: str
+    state: Optional[str] = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,10 +38,22 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configuration from environment variables
+SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-jwt-key-here-change-this-in-production")
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_HOURS", "24"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+DATABASE_PATH = os.getenv("DATABASE_PATH", "campscout.db")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,11 +61,6 @@ app.add_middleware(
 
 # Security
 security = HTTPBearer()
-SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
-ALGORITHM = "HS256"
-
-# Database setup
-DATABASE_PATH = "campscout.db"
 
 def init_database():
     """Initialize SQLite database with required tables"""
@@ -122,6 +137,7 @@ class CampsiteSearchRequest(BaseModel):
     nights: Optional[int] = 1
     weekend_only: Optional[bool] = False
     limit: Optional[int] = 20
+    rec_area_id: Optional[List[str]] = []
 
 class AvailabilityRequest(BaseModel):
     start_date: str
@@ -162,12 +178,14 @@ class Alert(BaseModel):
 
 # Helper functions
 def hash_password(password: str) -> str:
-    """Hash password using SHA-256"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password using bcrypt"""
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 def verify_password(password: str, hashed: str) -> bool:
-    """Verify password against hash"""
-    return hash_password(password) == hashed
+    """Verify password against bcrypt hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
@@ -175,7 +193,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(hours=24)
+        expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -187,12 +205,34 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         user_id: str = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        user = users_db.get(user_id)
-        if user is None:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
+        
+        # Query user from database
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, first_name, last_name, email, created_at 
+                FROM users WHERE id = ?
+            """, (user_id,))
+            user_row = cursor.fetchone()
+            
+            if user_row is None:
+                raise HTTPException(status_code=401, detail="User not found")
+            
+            # Convert to dict for easier access
+            user = {
+                "id": user_row["id"],
+                "first_name": user_row["first_name"],
+                "last_name": user_row["last_name"],
+                "email": user_row["email"],
+                "created_at": user_row["created_at"]
+            }
+            return user
+            
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    except Exception as e:
+        logger.error(f"Error getting current user: {str(e)}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 # Health endpoints
 @app.get("/")
@@ -243,7 +283,7 @@ async def register(user_data: UserRegister):
             
             # Create tokens
             access_token = create_access_token(data={"sub": user_id})
-            refresh_token = create_access_token(data={"sub": user_id}, expires_delta=timedelta(days=30))
+            refresh_token = create_access_token(data={"sub": user_id}, expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
             
             # Return user data without password
             user_response = User(
@@ -288,7 +328,7 @@ async def login(login_data: UserLogin):
             
             # Create tokens
             access_token = create_access_token(data={"sub": user_row["id"]})
-            refresh_token = create_access_token(data={"sub": user_row["id"]}, expires_delta=timedelta(days=30))
+            refresh_token = create_access_token(data={"sub": user_row["id"]}, expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
             
             # Return user data without password
             user_response = User(
@@ -312,6 +352,104 @@ async def login(login_data: UserLogin):
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         raise HTTPException(status_code=500, detail="Login failed")
+
+@app.post("/api/auth/google")
+async def google_auth(google_token: dict):
+    """Authenticate user with Google OAuth token"""
+    try:
+        if not GOOGLE_CLIENT_ID:
+            raise HTTPException(status_code=500, detail="Google OAuth not configured")
+        
+        # Import Google auth libraries
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+        
+        # Verify the Google token
+        try:
+            # Verify the token with Google
+            idinfo = id_token.verify_oauth2_token(
+                google_token.get('credential'), 
+                google_requests.Request(), 
+                GOOGLE_CLIENT_ID
+            )
+            
+            # Extract user information
+            google_user_id = idinfo['sub']
+            email = idinfo['email']
+            first_name = idinfo.get('given_name', '')
+            last_name = idinfo.get('family_name', '')
+            
+        except ValueError as e:
+            logger.error(f"Invalid Google token: {str(e)}")
+            raise HTTPException(status_code=401, detail="Invalid Google token")
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Check if user already exists
+            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+            existing_user = cursor.fetchone()
+            
+            if existing_user:
+                # User exists, log them in
+                user_id = existing_user["id"]
+                user_data = {
+                    "id": user_id,
+                    "first_name": existing_user["first_name"],
+                    "last_name": existing_user["last_name"],
+                    "email": existing_user["email"],
+                    "created_at": existing_user["created_at"]
+                }
+            else:
+                # Create new user
+                user_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO users (id, first_name, last_name, email, password, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    user_id,
+                    first_name,
+                    last_name,
+                    email,
+                    hash_password(f"google_oauth_{google_user_id}"),  # Dummy password for OAuth users
+                    datetime.utcnow().isoformat()
+                ))
+                conn.commit()
+                
+                user_data = {
+                    "id": user_id,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "email": email,
+                    "created_at": datetime.utcnow().isoformat()
+                }
+            
+            # Create tokens
+            access_token = create_access_token(data={"sub": user_id})
+            refresh_token = create_access_token(data={"sub": user_id}, expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+            
+            # Return user data with tokens
+            user_response = User(
+                id=user_data["id"],
+                first_name=user_data["first_name"],
+                last_name=user_data["last_name"],
+                email=user_data["email"],
+                created_at=datetime.fromisoformat(user_data["created_at"]) if isinstance(user_data["created_at"], str) else user_data["created_at"]
+            )
+            
+            logger.info(f"Google OAuth successful for user: {email}")
+            
+            return {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "user": user_response
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google OAuth error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Google authentication failed")
 
 # Public dashboard endpoint (no authentication required)
 @app.get("/api/dashboard/stats")
@@ -482,56 +620,82 @@ RECREATION_AREAS_TO_STATE = {
 @app.post("/api/search")
 async def search_campsites(request: CampsiteSearchRequest):
     """
-    Search for available campsites using camply
+    Search for available campsites using camply.
+    Prioritizes searching by rec_area_id if provided.
     """
     try:
-        logger.info(f"Searching campsites for location: {request.location}")
-        state = None
-        location_upper = (request.location or '').strip().upper()
-        # Try to extract state from location
-        if location_upper in STATE_ABBREVIATIONS:
-            state = STATE_ABBREVIATIONS[location_upper]
-        elif location_upper in STATE_ABBREVIATIONS.values():
-            state = location_upper
-        elif location_upper in NATIONAL_PARKS_TO_STATE:
-            state = NATIONAL_PARKS_TO_STATE[location_upper]
-        elif location_upper in RECREATION_AREAS_TO_STATE:
-            state = RECREATION_AREAS_TO_STATE[location_upper]
-        else:
-            # Try to find state by partial match
-            for k, v in STATE_ABBREVIATIONS.items():
-                if k in location_upper or v in location_upper:
-                    state = v
+        logger.info(f"Searching campsites with request: {request}")
+        provider = RecreationDotGov()
+        all_campgrounds = []
+
+        # If rec_area_ids are provided, search within them
+        if request.rec_area_id:
+            logger.info(f"Searching with rec_area_ids: {request.rec_area_id}")
+            campgrounds = provider.find_campgrounds(rec_area_id=[int(rec_id) for rec_id in request.rec_area_id])
+            all_campgrounds.extend(campgrounds)
+
+        else: # Fallback to location search if no rec_area_id
+            state = None
+            location_upper = (request.location or '').strip().upper()
+            # Try to extract state from location
+            if location_upper in STATE_ABBREVIATIONS:
+                state = STATE_ABBREVIATIONS[location_upper]
+            elif location_upper in STATE_ABBREVIATIONS.values():
+                state = location_upper
+            elif location_upper in NATIONAL_PARKS_TO_STATE:
+                state = NATIONAL_PARKS_TO_STATE[location_upper]
+            elif location_upper in RECREATION_AREAS_TO_STATE:
+                state = RECREATION_AREAS_TO_STATE[location_upper]
+            else:
+                # Try to find state by partial match
+                for k, v in STATE_ABBREVIATIONS.items():
+                    if k in location_upper or v in location_upper:
+                        state = v
+                        break
+                if not state:
+                    for k, v in NATIONAL_PARKS_TO_STATE.items():
+                        if k in location_upper:
+                            state = v
+                            break
+                if not state:
+                    for k, v in RECREATION_AREAS_TO_STATE.items():
+                        if k in location_upper:
+                            state = v
+                            break
+            logger.info(f"Extracted state: {state}")
+            # If no state found, broaden search
+            states_to_try = [state] if state else ['CA', 'OR', 'WA', 'CO', 'UT', 'AZ', 'NY', 'TX', 'FL', 'MT', 'WY', 'ID', 'NV', 'NM', 'NC', 'TN', 'GA', 'VA', 'PA', 'MI', 'MN', 'WI', 'MO', 'AR', 'SD', 'ND', 'KY', 'OK', 'AL', 'SC', 'LA', 'MD', 'MA', 'NH', 'VT', 'ME', 'AK', 'HI']
+            for st in states_to_try:
+                campsites = await search_campgrounds_with_camply(request.location or "", st)
+                if campsites:
+                    all_campgrounds.extend(campsites)
+                # If we found enough, break
+                if len(all_campgrounds) >= (request.limit or 20):
                     break
-            if not state:
-                for k, v in NATIONAL_PARKS_TO_STATE.items():
-                    if k in location_upper:
-                        state = v
-                        break
-            if not state:
-                for k, v in RECREATION_AREAS_TO_STATE.items():
-                    if k in location_upper:
-                        state = v
-                        break
-        logger.info(f"Extracted state: {state}")
-        # If no state found, broaden search (e.g., search CA, OR, WA, CO, UT, AZ, NY, etc.)
-        states_to_try = [state] if state else ['CA', 'OR', 'WA', 'CO', 'UT', 'AZ', 'NY', 'TX', 'FL', 'MT', 'WY', 'ID', 'NV', 'NM', 'NC', 'TN', 'GA', 'VA', 'PA', 'MI', 'MN', 'WI', 'MO', 'AR', 'SD', 'ND', 'KY', 'OK', 'AL', 'SC', 'LA', 'MD', 'MA', 'NH', 'VT', 'ME', 'AK', 'HI']
-        all_campsites = []
-        for st in states_to_try:
-            campsites = await search_campgrounds_with_camply(request.location or "", st)
-            if campsites:
-                all_campsites.extend(campsites)
-            # If we found enough, break
-            if len(all_campsites) >= (request.limit or 20):
-                break
-        # Remove duplicates by id
+
+        # Convert to our CampsiteInfo format
+        campsite_infos = []
+        for cg in all_campgrounds:
+            campsite_info = CampsiteInfo(
+                id=str(cg.facility_id),
+                name=cg.facility_name,
+                description=getattr(cg, 'description', '') or f"Campground in {getattr(cg, 'state', 'Unknown')}",
+                state=getattr(cg, 'state', ''),
+                city=getattr(cg, 'city', ''),
+                latitude=getattr(cg, 'latitude', None),
+                longitude=getattr(cg, 'longitude', None),
+                activities=getattr(cg, 'activities', []) or ["Camping"],
+                phone=getattr(cg, 'phone', ''),
+                email=getattr(cg, 'email', ''),
+                reservation_url=f"https://www.recreation.gov/camping/campgrounds/{cg.facility_id}",
+                recreation_gov_id=str(cg.facility_id)
+            )
+            campsite_infos.append(campsite_info)
+
         seen = set()
-        unique_campsites = []
-        for cg in all_campsites:
-            if cg.id not in seen:
-                unique_campsites.append(cg)
-                seen.add(cg.id)
-        # If still no results, fallback
+        unique_campsites = [c for c in campsite_infos if c.id not in seen and not seen.add(c.id)]
+
+
         if not unique_campsites:
             logger.warning("No campsites found via camply, using fallback data")
             unique_campsites = [
@@ -539,7 +703,7 @@ async def search_campsites(request: CampsiteSearchRequest):
                     id="fallback-1",
                     name="Popular Campground",
                     description="This campground is currently not available through our search but may have availability. Please check Recreation.gov directly.",
-                    state=state or "CA",
+                    state=state if 'state' in locals() else "CA",
                     city="Various Locations",
                     latitude=None,
                     longitude=None,
@@ -550,15 +714,18 @@ async def search_campsites(request: CampsiteSearchRequest):
                     recreation_gov_id=""
                 )
             ]
+
         return {
             "success": True,
             "data": unique_campsites[:request.limit or 20],
             "total_count": len(unique_campsites),
             "source": "recreation.gov via camply"
         }
+
     except Exception as e:
         logger.error(f"Error searching campsites: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error searching campsites: {str(e)}")
+
 
 # Availability check endpoint
 # Support both GET and POST for availability checking
@@ -788,6 +955,58 @@ async def get_user_alerts(current_user: dict = Depends(get_current_user)):
         logger.error(f"Error fetching alerts: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch alerts")
 
+@app.post("/api/rec-areas")
+async def find_recreation_areas(request: RecAreaSearchRequest):
+    """
+    Find recreation areas based on a search string.
+    """
+    try:
+        from camply.providers.recreation_dot_gov.recdotgov_provider import RecreationDotGovBase
+        from camply.containers.api_responses import RecreationAreaResponse
+        from camply.config import RIDBConfig
+
+        class MyRecDotGovProvider(RecreationDotGovBase):
+            @property
+            def api_search_result_key(self):
+                return "RecAreaID"
+            @property
+            def activity_name(self):
+                return "CAMPING"
+            @property
+            def api_search_result_class(self):
+                return RecreationAreaResponse
+            @property
+            def facility_type(self):
+                return "Campground"
+            @property
+            def resource_api_path(self):
+                return RIDBConfig.REC_AREA_API_PATH
+            @property
+            def api_base_path(self):
+                return RIDBConfig.RIDB_BASE_PATH
+            @property
+            def api_response_class(self):
+                return RecreationAreaResponse
+            def paginate_recdotgov_campsites(self, facility_id):
+                return []
+
+        provider = MyRecDotGovProvider()
+        results = provider.find_recreation_areas(search_string=request.search_string, state=request.state)
+
+        rec_areas = []
+        for rec_area in results:
+            rec_areas.append({
+                "id": rec_area.get("RecAreaID"),
+                "name": rec_area.get("RecAreaName")
+            })
+
+        return {"success": True, "data": rec_areas}
+
+    except Exception as e:
+        logging.error(f"Error finding recreation areas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error finding recreation areas: {str(e)}")
+
+
 @app.patch("/api/campgrounds/alerts/{alert_id}")
 async def update_alert(
     alert_id: str,
@@ -796,22 +1015,68 @@ async def update_alert(
 ):
     """Update an alert"""
     try:
-        alert = alerts_db.get(alert_id)
-        if not alert:
-            raise HTTPException(status_code=404, detail="Alert not found")
-        
-        if alert["user_id"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to update this alert")
-        
-        # Update alert
-        for key, value in update_data.items():
-            if key in alert:
-                alert[key] = value
-        
-        alert["updated_at"] = datetime.utcnow()
-        alerts_db[alert_id] = alert
-        
-        return {"success": True, "data": alert}
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get the alert and verify ownership
+            cursor.execute("""
+                SELECT id, user_id, campground_name, start_date, end_date, site_type, party_size, is_active, created_at
+                FROM alerts WHERE id = ? AND is_active = 1
+            """, (alert_id,))
+            
+            alert_row = cursor.fetchone()
+            if not alert_row:
+                raise HTTPException(status_code=404, detail="Alert not found")
+            
+            if alert_row["user_id"] != current_user["id"]:
+                raise HTTPException(status_code=403, detail="Not authorized to update this alert")
+            
+            # Prepare update fields (only allow certain fields to be updated)
+            allowed_fields = ["start_date", "end_date", "site_type", "party_size", "is_active"]
+            update_fields = []
+            update_values = []
+            
+            for key, value in update_data.items():
+                if key in allowed_fields:
+                    update_fields.append(f"{key} = ?")
+                    update_values.append(value)
+            
+            if not update_fields:
+                raise HTTPException(status_code=400, detail="No valid fields to update")
+            
+            # Add updated timestamp
+            update_fields.append("created_at = ?")  # Using created_at as updated_at for simplicity
+            update_values.append(datetime.utcnow().isoformat())
+            update_values.append(alert_id)
+            
+            # Update the alert
+            cursor.execute(f"""
+                UPDATE alerts SET {', '.join(update_fields)}
+                WHERE id = ?
+            """, update_values)
+            
+            conn.commit()
+            
+            # Return updated alert
+            cursor.execute("""
+                SELECT id, user_id, campground_name, start_date, end_date, site_type, party_size, is_active, created_at
+                FROM alerts WHERE id = ?
+            """, (alert_id,))
+            
+            updated_alert = cursor.fetchone()
+            alert_data = {
+                "id": updated_alert["id"],
+                "user_id": updated_alert["user_id"],
+                "campground_name": updated_alert["campground_name"],
+                "start_date": updated_alert["start_date"],
+                "end_date": updated_alert["end_date"],
+                "site_type": updated_alert["site_type"],
+                "party_size": updated_alert["party_size"],
+                "is_active": bool(updated_alert["is_active"]),
+                "created_at": updated_alert["created_at"]
+            }
+            
+            return {"success": True, "data": alert_data}
         
     except HTTPException:
         raise
@@ -824,18 +1089,35 @@ async def delete_alert(
     alert_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete an alert"""
+    """Delete an alert (soft delete by setting is_active to 0)"""
     try:
-        alert = alerts_db.get(alert_id)
-        if not alert:
-            raise HTTPException(status_code=404, detail="Alert not found")
-        
-        if alert["user_id"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to delete this alert")
-        
-        del alerts_db[alert_id]
-        
-        return {"success": True, "message": "Alert deleted successfully"}
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get the alert and verify ownership
+            cursor.execute("""
+                SELECT id, user_id FROM alerts WHERE id = ? AND is_active = 1
+            """, (alert_id,))
+            
+            alert_row = cursor.fetchone()
+            if not alert_row:
+                raise HTTPException(status_code=404, detail="Alert not found")
+            
+            if alert_row["user_id"] != current_user["id"]:
+                raise HTTPException(status_code=403, detail="Not authorized to delete this alert")
+            
+            # Soft delete the alert
+            cursor.execute("""
+                UPDATE alerts SET is_active = 0 WHERE id = ?
+            """, (alert_id,))
+            
+            conn.commit()
+            
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Alert not found")
+            
+            logger.info(f"Alert {alert_id} deleted by user {current_user['id']}")
+            return {"success": True, "message": "Alert deleted successfully"}
         
     except HTTPException:
         raise

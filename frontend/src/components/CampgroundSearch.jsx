@@ -29,6 +29,10 @@ const CampgroundSearch = ({ onSearchResults }) => {
         totalDays: 0,
         dateRange: ''
     });
+    const [recAreas, setRecAreas] = useState([]);
+    const [selectedRecAreas, setSelectedRecAreas] = useState(new Set());
+    const [checkingRecAreas, setCheckingRecAreas] = useState(false);
+
 
     // State name to abbreviation mapping
     const stateAbbreviations = {
@@ -209,6 +213,34 @@ const CampgroundSearch = ({ onSearchResults }) => {
         'Ouachita National Forest', 'Ozark National Forest'
     ];
 
+    const handleRecAreaCheck = async () => {
+        if (!locationInput) return;
+        setCheckingRecAreas(true);
+        try {
+            const response = await axios.post('/api/rec-areas', {
+                search_string: locationInput,
+            });
+            if (response.data.success) {
+                setRecAreas(response.data.data);
+            }
+        } catch (err) {
+            console.error('Error checking rec areas:', err);
+            setError('Failed to check recreation areas');
+        } finally {
+            setCheckingRecAreas(false);
+        }
+    };
+
+    const handleRecAreaSelection = (recAreaId) => {
+        const newSelectedRecAreas = new Set(selectedRecAreas);
+        if (newSelectedRecAreas.has(recAreaId)) {
+            newSelectedRecAreas.delete(recAreaId);
+        } else {
+            newSelectedRecAreas.add(recAreaId);
+        }
+        setSelectedRecAreas(newSelectedRecAreas);
+    };
+
     // Handle location input with autocomplete
     const handleLocationInputChange = (e) => {
         const value = e.target.value;
@@ -343,18 +375,12 @@ const CampgroundSearch = ({ onSearchResults }) => {
         setError('');
 
         try {
-            const queryParams = new URLSearchParams();
+            const searchPayload = {
+                ...searchParams,
+                rec_area_id: Array.from(selectedRecAreas)
+            };
 
-            // Add all search parameters
-            Object.entries(searchParams).forEach(([key, value]) => {
-                if (value && value.toString().trim()) {
-                    queryParams.append(key, value);
-                }
-            });
-
-            console.log('Search query params:', queryParams.toString());
-
-            const response = await axios.post('/api/search', searchParams, {
+            const response = await axios.post('/api/search', searchPayload, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -375,12 +401,19 @@ const CampgroundSearch = ({ onSearchResults }) => {
 
     // Attach searchParams to results in CampgroundSearch so SearchResults and CampgroundCard can use them for availability fetching
     const handleSearchResults = (results, total) => {
-        results.searchParams = {
+        const searchParamsForResults = {
             start_date: searchParams.start_date,
             end_date: searchParams.end_date,
-            nights: searchParams.nights
+            nights: searchParams.nights,
+            location: searchParams.location,
+            activity: searchParams.activity,
+            site_type: searchParams.site_type,
+            party_size: searchParams.party_size,
+            accessibility: searchParams.accessibility,
+            weekend_only: searchParams.weekend_only
         };
-        onSearchResults(results, total);
+        results.searchParams = searchParamsForResults;
+        onSearchResults(results, total, searchParamsForResults);
     };
 
     // Live availability check for specific campground
@@ -426,6 +459,8 @@ const CampgroundSearch = ({ onSearchResults }) => {
         setLocationSuggestions([]);
         setShowSuggestions(false);
         setError('');
+        setRecAreas([]);
+        setSelectedRecAreas(new Set());
         setDateInfo({
             weekendCount: 0,
             totalDays: 0,
@@ -440,19 +475,29 @@ const CampgroundSearch = ({ onSearchResults }) => {
             </div>
 
             <form onSubmit={handleSearch} className="space-y-6">
-                {/* Enhanced Location Search with Autocomplete */}
+                {/* Enhanced Location Search with Autocomplete and Check Button */}
                 <div className="relative" ref={locationInputRef}>
                     <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
                         🌍 Location (State, National Park, or Recreation Area)
                     </label>
-                    <input
-                        type="text"
-                        id="location"
-                        value={locationInput}
-                        onChange={handleLocationInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-                        placeholder="e.g., California, Yosemite, Lake Tahoe, Yellowstone"
-                    />
+                    <div className="flex items-center space-x-2">
+                        <input
+                            type="text"
+                            id="location"
+                            value={locationInput}
+                            onChange={handleLocationInputChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                            placeholder="e.g., California, Yosemite, Lake Tahoe, Yellowstone"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleRecAreaCheck}
+                            disabled={checkingRecAreas}
+                            className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                        >
+                            {checkingRecAreas ? '...' : 'Check'}
+                        </button>
+                    </div>
                     {showSuggestions && locationSuggestions.length > 0 && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                             {locationSuggestions.map((suggestion, index) => (
@@ -469,6 +514,27 @@ const CampgroundSearch = ({ onSearchResults }) => {
                                     {suggestion}
                                 </div>
                             ))}
+                        </div>
+                    )}
+                    {recAreas.length > 0 && (
+                        <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Select Recreation Areas:</h4>
+                            <div className="space-y-2">
+                                {recAreas.map((area) => (
+                                    <div key={area.id} className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id={`rec-area-${area.id}`}
+                                            checked={selectedRecAreas.has(area.id)}
+                                            onChange={() => handleRecAreaSelection(area.id)}
+                                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                        <label htmlFor={`rec-area-${area.id}`} className="ml-2 text-sm text-gray-900">
+                                            {area.name}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

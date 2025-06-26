@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 const AuthContext = createContext();
 
 // Configure axios defaults
-axios.defaults.baseURL = 'http://localhost:8000';
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
@@ -146,6 +146,26 @@ export const AuthProvider = ({ children }) => {
         return localStorage.getItem('access_token');
     };
 
+    const googleAuth = async (credential) => {
+        try {
+            setError(null);
+            const response = await axios.post('/api/auth/google', { credential });
+
+            const { access_token, refresh_token, user } = response.data;
+
+            localStorage.setItem('access_token', access_token);
+            localStorage.setItem('refresh_token', refresh_token);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+
+            setUser(user);
+            return { success: true, user };
+        } catch (error) {
+            const errorMessage = error.response?.data?.error || 'Google authentication failed';
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        }
+    };
+
     const value = {
         user,
         loading,
@@ -155,6 +175,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         clearError,
         getAuthToken,
+        googleAuth,
         isAuthenticated: !!user
     };
 

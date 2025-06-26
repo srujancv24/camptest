@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Search Persistence</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        .results {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 CampScout Search Persistence Test</h1>
+
+    <div class="test-section">
+        <h3>Test 1: Save Search Results</h3>
+        <button onclick="saveTestResults()">Save Test Search Results</button>
+        <div id="save-result" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Load Search Results</h3>
+        <button onclick="loadTestResults()">Load Saved Search Results</button>
+        <div id="load-result" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Clear Search Results</h3>
+        <button onclick="clearTestResults()">Clear Search Results</button>
+        <div id="clear-result" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: Persistence Check</h3>
+        <p>After saving results, refresh this page and click "Load Saved Search Results" to verify persistence.</p>
+        <button onclick="window.location.reload()">Refresh Page</button>
+    </div>
+
+    <script>
+        // Test data that mimics CampScout search results
+        const testSearchResults = [
+            {
+                id: "test-1",
+                name: "Test Campground 1",
+                description: "A beautiful test campground",
+                state: "CA",
+                city: "Test City",
+                activities: ["Camping", "Hiking"],
+                searchParams: {
+                    start_date: "2024-07-01",
+                    end_date: "2024-07-03",
+                    nights: 2,
+                    location: "California",
+                    activity: "camping"
+                }
+            },
+            {
+                id: "test-2",
+                name: "Test Campground 2",
+                description: "Another test campground",
+                state: "OR",
+                city: "Test Town",
+                activities: ["Camping", "Fishing"],
+                searchParams: {
+                    start_date: "2024-07-01",
+                    end_date: "2024-07-03",
+                    nights: 2,
+                    location: "Oregon",
+                    activity: "camping"
+                }
+            }
+        ];
+
+        const testSearchParams = {
+            start_date: "2024-07-01",
+            end_date: "2024-07-03",
+            nights: 2,
+            location: "California",
+            activity: "camping",
+            site_type: "any",
+            party_size: 2
+        };
+
+        function saveTestResults() {
+            try {
+                // Save search results (mimicking CampScout behavior)
+                localStorage.setItem('campscout_search_results', JSON.stringify(testSearchResults));
+                localStorage.setItem('campscout_search_total_count', testSearchResults.length.toString());
+                localStorage.setItem('campscout_last_search_params', JSON.stringify(testSearchParams));
+
+                document.getElementById('save-result').innerHTML = `
+                    <div class="success">
+                        ✅ Successfully saved ${testSearchResults.length} search results to localStorage<br>
+                        📊 Total count: ${testSearchResults.length}<br>
+                        🔍 Search params: ${testSearchParams.location}, ${testSearchParams.start_date} to ${testSearchParams.end_date}
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('save-result').innerHTML = `
+                    <div class="error">❌ Error saving results: ${error.message}</div>
+                `;
+            }
+        }
+
+        function loadTestResults() {
+            try {
+                const savedResults = localStorage.getItem('campscout_search_results');
+                const savedCount = localStorage.getItem('campscout_search_total_count');
+                const savedParams = localStorage.getItem('campscout_last_search_params');
+
+                if (savedResults && savedCount && savedParams) {
+                    const results = JSON.parse(savedResults);
+                    const count = parseInt(savedCount, 10);
+                    const params = JSON.parse(savedParams);
+
+                    document.getElementById('load-result').innerHTML = `
+                        <div class="success">
+                            ✅ Successfully loaded search results from localStorage<br>
+                            📊 Found ${count} campgrounds<br>
+                            🔍 Last search: ${params.location}, ${params.start_date} to ${params.end_date}<br>
+                            🏕️ Campgrounds: ${results.map(r => r.name).join(', ')}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('load-result').innerHTML = `
+                        <div class="error">❌ No saved search results found. Save some results first!</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('load-result').innerHTML = `
+                    <div class="error">❌ Error loading results: ${error.message}</div>
+                `;
+            }
+        }
+
+        function clearTestResults() {
+            try {
+                localStorage.removeItem('campscout_search_results');
+                localStorage.removeItem('campscout_search_total_count');
+                localStorage.removeItem('campscout_last_search_params');
+
+                document.getElementById('clear-result').innerHTML = `
+                    <div class="success">✅ Successfully cleared all search results from localStorage</div>
+                `;
+            } catch (error) {
+                document.getElementById('clear-result').innerHTML = `
+                    <div class="error">❌ Error clearing results: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Auto-load on page load to show current state
+        window.onload = function () {
+            const savedResults = localStorage.getItem('campscout_search_results');
+            if (savedResults) {
+                const results = JSON.parse(savedResults);
+                console.log('Found existing search results:', results.length, 'items');
+            } else {
+                console.log('No existing search results found');
+            }
+        };
+    </script>
+</body>
+
+</html>
