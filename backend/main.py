@@ -2,6 +2,7 @@
 CampScout API Backend using camply library
 """
 from fastapi import FastAPI, HTTPException, Depends, status, Query, Response, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
@@ -31,6 +32,12 @@ logger = logging.getLogger(__name__)
 # This will print the raw value from the environment, or None if it's not found
 raw_cors_env = os.getenv("CORS_ORIGINS")
 print(f"--- RAW VALUE FROM os.getenv('CORS_ORIGINS'): {raw_cors_env} ---")
+
+# Try to disable Railway's automatic CORS handling
+os.environ["RAILWAY_DISABLE_CORS"] = "true"
+os.environ["DISABLE_CORS"] = "true"
+os.environ["NO_CORS"] = "true"
+print("--- ATTEMPTING TO DISABLE RAILWAY CORS ---")
 # ==============================================================================
 
 
@@ -92,6 +99,11 @@ async def railway_cors_override(request, call_next):
     logger.warning(f"RAILWAY CORS: Request from origin: {origin}, method: {request.method}, path: {request.url.path}")
     logger.warning(f"RAILWAY CORS: All request headers: {dict(request.headers)}")
     
+    # Special logging for requests from our frontend
+    if origin == "https://campscout-demo.surge.sh":
+        logger.error(f"🎯 FRONTEND REQUEST DETECTED: {request.method} {request.url.path} from {origin}")
+        logger.error(f"🎯 FRONTEND REQUEST HEADERS: {dict(request.headers)}")
+    
     # Handle preflight requests with maximum compatibility
     if request.method == "OPTIONS":
         logger.warning(f"RAILWAY CORS: Handling OPTIONS preflight from: {origin}")
@@ -125,6 +137,11 @@ async def railway_cors_override(request, call_next):
             response.headers[key] = value
         
         logger.warning(f"RAILWAY CORS: OPTIONS response headers: {dict(response.headers)}")
+        
+        # Special logging for frontend OPTIONS requests
+        if origin == "https://campscout-demo.surge.sh":
+            logger.error(f"🎯 FRONTEND OPTIONS RESPONSE: {dict(response.headers)}")
+        
         return response
     
     # Process normal requests
@@ -132,6 +149,16 @@ async def railway_cors_override(request, call_next):
     
     # Log original response headers
     logger.warning(f"RAILWAY CORS: Original response headers: {dict(response.headers)}")
+    
+    # Remove any existing CORS headers that Railway might have added
+    headers_to_remove = []
+    for key in response.headers.keys():
+        if key.lower().startswith('access-control-'):
+            headers_to_remove.append(key)
+    
+    for header in headers_to_remove:
+        logger.warning(f"REMOVING Railway header: {header} = {response.headers[header]}")
+        del response.headers[header]
     
     # Force CORS headers on all responses with multiple variations
     cors_response_headers = {
@@ -145,8 +172,15 @@ async def railway_cors_override(request, call_next):
     
     for key, value in cors_response_headers.items():
         response.headers[key] = value
+        logger.warning(f"SETTING CORS header: {key} = {value}")
     
     logger.warning(f"RAILWAY CORS: Final response headers: {dict(response.headers)}")
+    
+    # Special logging for frontend responses
+    if origin == "https://campscout-demo.surge.sh":
+        logger.error(f"🎯 FRONTEND FINAL RESPONSE: {request.method} {request.url.path}")
+        logger.error(f"🎯 FRONTEND FINAL HEADERS: {dict(response.headers)}")
+    
     return response
 
 # Security
@@ -356,6 +390,27 @@ async def cors_test_options():
     """Handle preflight for CORS test"""
     logger.warning("CORS test OPTIONS called")
     return {"message": "OPTIONS handled"}
+
+@app.get("/api/cors-bypass-test")
+async def cors_bypass_test():
+    """Test bypassing Railway CORS with custom response"""
+    logger.warning("CORS bypass test endpoint called")
+    
+    # Create a custom response with explicit CORS headers
+    response = JSONResponse(
+        content={
+            "message": "CORS bypass test working!",
+            "timestamp": datetime.now().isoformat(),
+        }
+    )
+    
+    # Force CORS headers directly on the response
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    logger.warning(f"CORS bypass test response headers: {dict(response.headers)}")
+    return response
 
 # Authentication endpoints
 @app.post("/api/auth/register")
