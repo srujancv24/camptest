@@ -21,6 +21,19 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# ==============================================================================
+# TEMPORARY DEBUGGING - ADD THESE LINES
+# ==============================================================================
+print("--- APPLICATION SCRIPT IS STARTING TO EXECUTE ---") 
+logging.basicConfig(level=logging.INFO) # Temporarily force INFO level logging
+logger = logging.getLogger(__name__)
+
+# This will print the raw value from the environment, or None if it's not found
+raw_cors_env = os.getenv("CORS_ORIGINS")
+print(f"--- RAW VALUE FROM os.getenv('CORS_ORIGINS'): {raw_cors_env} ---")
+# ==============================================================================
+
+
 # Import camply for real campsite data
 from camply import RecreationDotGov, SearchRecreationDotGov, SearchWindow
 
@@ -44,7 +57,15 @@ ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_HOURS", "24"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 DATABASE_PATH = os.getenv("DATABASE_PATH", "campscout.db")
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+#CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+
+try:
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS","http://localhost:5173").split(",")
+    # Use WARNING level to make sure it's not missed
+    logger.warning(f"CORS allowed origins configured as: {CORS_ORIGINS}") 
+except Exception as e:
+    # Log any error that happens during the CORS setup
+    logger.error(f"ERROR setting up CORS: {e}")
 
 logger.info(f"CORS allowed origins: {CORS_ORIGINS}")
 
