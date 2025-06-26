@@ -39,6 +39,7 @@ app = FastAPI(
 )
 
 # Configuration from environment variables
+<<<<<<< HEAD
 SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-jwt-key-here-change-this-in-production")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_HOURS", "24"))
@@ -50,6 +51,13 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
+=======
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+DATABASE_PATH = os.getenv("DATABASE_PATH", "campscout.db")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+
+>>>>>>> f4708c0 (🚂 Recreate Railway deployment files - Add railway.json, Procfile, and environment config)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
