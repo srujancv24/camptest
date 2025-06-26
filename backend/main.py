@@ -62,7 +62,7 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "campscout.db")
 # Railway-specific configuration
 RAILWAY_ENVIRONMENT = os.getenv("RAILWAY_ENVIRONMENT")
 RAILWAY_PROJECT_ID = os.getenv("RAILWAY_PROJECT_ID")
-PORT = os.getenv("PORT", "8000")
+PORT = int(os.getenv("PORT", "8000"))
 
 logger.warning(f"Railway Environment: {RAILWAY_ENVIRONMENT}")
 logger.warning(f"Railway Project ID: {RAILWAY_PROJECT_ID}")
@@ -1248,4 +1248,4 @@ async def delete_alert(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
