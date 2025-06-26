@@ -9,8 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Expose port
-EXPOSE 8000
+# Railway will provide the PORT environment variable
+EXPOSE $PORT
 
-# Start the application with explicit CORS handling
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+# Start the application using Railway's PORT environment variable
+CMD uvicorn main:app --host 0.0.0.0 --port $PORT --log-level info
