@@ -1,4 +1,4 @@
-name: Deploy CampScout to GitHub Pages
+name: Deploy CampScout with Yarn
 
 on:
   push:
@@ -18,22 +18,26 @@ jobs:
       with:
         node-version: '18'
     
-    - name: Clean install dependencies
+    - name: Enable Corepack
+      run: corepack enable
+    
+    - name: Install dependencies with Yarn
       run: |
         cd frontend
-        rm -rf node_modules package-lock.json
-        npm install --force
+        yarn install --frozen-lockfile || yarn install
         
-    - name: Build frontend
+    - name: Build application
       run: |
         cd frontend
-        npm run build
+        yarn build
       env:
         VITE_API_URL: https://campscout-backend-demo.railway.app
+        NODE_ENV: production
     
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
+      if: success()
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./frontend/dist
-        cname: campscout-demo.github.io
+        force_orphan: true
