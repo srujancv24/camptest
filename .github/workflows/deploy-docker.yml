@@ -1,0 +1,28 @@
+name: Deploy CampScout (Docker)
+
+on:
+  push:
+    branches: [ main, copilot ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build with Docker
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}/frontend:/app \
+          -w /app \
+          -e VITE_API_URL=https://campscout-backend-demo.railway.app \
+          node:20-alpine \
+          sh -c "npm install --legacy-peer-deps && npm run build"
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./frontend/dist
