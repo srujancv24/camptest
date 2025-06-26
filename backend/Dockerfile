@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Railway will provide the PORT environment variable
-EXPOSE $PORT
+EXPOSE 8000
 
-# Start the application using Railway's PORT environment variable
-CMD uvicorn main:app --host 0.0.0.0 --port $PORT --log-level info
+# Start the application using Railway's PORT environment variable (shell expansion)
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info"]
