@@ -11,8 +11,16 @@ const Dashboard = () => {
     const { user, logout, getAuthToken, isAuthenticated } = useAuth();
     const { showSuccess, showError } = useToast();
     const [activeTab, setActiveTab] = useState('search');
-    const [searchResults, setSearchResults] = useState([]);
-    const [totalCount, setTotalCount] = useState(0);
+    const [searchResults, setSearchResults] = useState(() => {
+        // Load search results from localStorage on initialization
+        const savedResults = localStorage.getItem('campscout_search_results');
+        return savedResults ? JSON.parse(savedResults) : [];
+    });
+    const [totalCount, setTotalCount] = useState(() => {
+        // Load total count from localStorage on initialization
+        const savedCount = localStorage.getItem('campscout_search_total_count');
+        return savedCount ? parseInt(savedCount, 10) : 0;
+    });
     const [searchLoading, setSearchLoading] = useState(false);
     const [offset, setOffset] = useState(0);
     const [statsLoading, setStatsLoading] = useState(false);
@@ -20,6 +28,11 @@ const Dashboard = () => {
         watchedCampsites: 0,
         notificationsSent: 0,
         successfulBookings: 0
+    });
+    const [lastSearchParams, setLastSearchParams] = useState(() => {
+        // Load last search parameters from localStorage
+        const savedParams = localStorage.getItem('campscout_last_search_params');
+        return savedParams ? JSON.parse(savedParams) : null;
     });
 
     // Fetch user stats
@@ -44,12 +57,32 @@ const Dashboard = () => {
         }
     };
 
-    const handleSearchResults = (results, total) => {
+    const handleSearchResults = (results, total, searchParams = null) => {
         setSearchResults(results);
         setTotalCount(total);
         setOffset(results.length);
         setActiveTab('results');
+
+        // Save search results and parameters to localStorage for persistence
+        localStorage.setItem('campscout_search_results', JSON.stringify(results));
+        localStorage.setItem('campscout_search_total_count', total.toString());
+
+        if (searchParams) {
+            setLastSearchParams(searchParams);
+            localStorage.setItem('campscout_last_search_params', JSON.stringify(searchParams));
+        }
+
         showSuccess(`Found ${total} campground${total !== 1 ? 's' : ''} matching your search!`);
+    };
+
+    const clearSearchResults = () => {
+        setSearchResults([]);
+        setTotalCount(0);
+        setLastSearchParams(null);
+        localStorage.removeItem('campscout_search_results');
+        localStorage.removeItem('campscout_search_total_count');
+        localStorage.removeItem('campscout_last_search_params');
+        showSuccess('Search results cleared');
     };
 
     const handleLoadMore = async () => {
@@ -230,13 +263,41 @@ const Dashboard = () => {
                     )}
 
                     {activeTab === 'results' && (
-                        <SearchResults
-                            results={searchResults}
-                            totalCount={totalCount}
-                            loading={searchLoading}
-                            onLoadMore={handleLoadMore}
-                            hasMore={searchResults.length < totalCount}
-                        />
+                        <div>
+                            {searchResults.length > 0 && (
+                                <div className="mb-6 bg-white rounded-lg shadow-md p-4">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-gray-900">Search Results</h3>
+                                            {lastSearchParams && (
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    Last search: {lastSearchParams.location || 'All locations'}
+                                                    {lastSearchParams.start_date && lastSearchParams.end_date && (
+                                                        <span> • {lastSearchParams.start_date} to {lastSearchParams.end_date}</span>
+                                                    )}
+                                                    {lastSearchParams.nights && (
+                                                        <span> • {lastSearchParams.nights} night{lastSearchParams.nights !== 1 ? 's' : ''}</span>
+                                                    )}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={clearSearchResults}
+                                            className="text-sm text-red-600 hover:text-red-800 font-medium"
+                                        >
+                                            Clear Results
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            <SearchResults
+                                results={searchResults}
+                                totalCount={totalCount}
+                                loading={searchLoading}
+                                onLoadMore={handleLoadMore}
+                                hasMore={searchResults.length < totalCount}
+                            />
+                        </div>
                     )}
 
                     {activeTab === 'profile' && isAuthenticated && (

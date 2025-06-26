@@ -401,12 +401,19 @@ const CampgroundSearch = ({ onSearchResults }) => {
 
     // Attach searchParams to results in CampgroundSearch so SearchResults and CampgroundCard can use them for availability fetching
     const handleSearchResults = (results, total) => {
-        results.searchParams = {
+        const searchParamsForResults = {
             start_date: searchParams.start_date,
             end_date: searchParams.end_date,
-            nights: searchParams.nights
+            nights: searchParams.nights,
+            location: searchParams.location,
+            activity: searchParams.activity,
+            site_type: searchParams.site_type,
+            party_size: searchParams.party_size,
+            accessibility: searchParams.accessibility,
+            weekend_only: searchParams.weekend_only
         };
-        onSearchResults(results, total);
+        results.searchParams = searchParamsForResults;
+        onSearchResults(results, total, searchParamsForResults);
     };
 
     // Live availability check for specific campground
