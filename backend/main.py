@@ -52,22 +52,32 @@ app = FastAPI(
 )
 
 # Configuration from environment variables
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-jwt-key-here-change-this-in-production")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_HOURS", "24"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 DATABASE_PATH = os.getenv("DATABASE_PATH", "campscout.db")
-#CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 
+# CORS Configuration with better error handling
 try:
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS","http://localhost:5173").split(",")
-    # Use WARNING level to make sure it's not missed
+    # Hardcode CORS origins as a list for testing
+    CORS_ORIGINS = ["https://campscout-demo.surge.sh"]
+    
+    # Log environment and CORS configuration
+    logger.warning(f"Environment: {ENVIRONMENT}")
     logger.warning(f"CORS allowed origins configured as: {CORS_ORIGINS}") 
+    
+    # In production, warn if still using localhost
+    if ENVIRONMENT == "production" and any("localhost" in origin for origin in CORS_ORIGINS):
+        logger.error("WARNING: Production environment detected but CORS origins still contain localhost!")
+        
 except Exception as e:
     # Log any error that happens during the CORS setup
     logger.error(f"ERROR setting up CORS: {e}")
+    CORS_ORIGINS = ["http://localhost:5173"]  # Fallback
 
-logger.info(f"CORS allowed origins: {CORS_ORIGINS}")
+logger.info(f"Final CORS allowed origins: {CORS_ORIGINS}")
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
