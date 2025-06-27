@@ -258,13 +258,14 @@ async def health_check():
     }
 
 @app.get("/api/cors-test")
-async def cors_test(request):
+async def cors_test(request: Request, test_param: str = Query(default="default")):
     """Test CORS configuration"""
     logger.warning("CORS test endpoint called")
     return {
         "message": "CORS is working!",
         "timestamp": datetime.now().isoformat(),
         "cors_origins": CORS_ORIGINS,
+        "test_param": test_param,
         "request_origin": request.headers.get("origin"),
         "request_headers": dict(request.headers)
     }

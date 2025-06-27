@@ -1,64 +1,13 @@
-WARNING:main:Environment: development
-WARNING:main:CORS allowed origins configured as: ['https://campscout-demo.surge.sh']
-INFO:main:Final CORS allowed origins: ['https://campscout-demo.surge.sh']
-WARNING:main:CORS DISABLED - handling manually to override Railway
+INFO:main:Environment: development
+INFO:main:CORS allowed origins: ['https://campscout-demo.surge.sh']
 INFO:main:Database initialized successfully
-INFO:     Started server process [6526]
+INFO:     Started server process [38768]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-WARNING:main:RAILWAY CORS: Request from origin: , method: GET, path: /api/health
-WARNING:main:RAILWAY CORS: All request headers: {'host': 'localhost:8000', 'user-agent': 'curl/8.7.1', 'accept': '*/*'}
-WARNING:main:RAILWAY CORS: Original response headers: {'content-length': '87', 'content-type': 'application/json'}
-WARNING:main:SETTING CORS header: Access-Control-Allow-Origin = *
-WARNING:main:SETTING CORS header: access-control-allow-origin = *
-WARNING:main:SETTING CORS header: Access-Control-Allow-Methods = GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD
-WARNING:main:SETTING CORS header: Access-Control-Allow-Headers = *
-WARNING:main:SETTING CORS header: Access-Control-Expose-Headers = *
-WARNING:main:SETTING CORS header: Vary = Origin
-WARNING:main:RAILWAY CORS: Final response headers: {'content-length': '87', 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD', 'access-control-allow-headers': '*', 'access-control-expose-headers': '*', 'vary': 'Origin'}
---- APPLICATION SCRIPT IS STARTING TO EXECUTE ---
---- RAW VALUE FROM os.getenv('CORS_ORIGINS'): https://campscout-demo.surge.sh ---
---- ATTEMPTING TO DISABLE RAILWAY CORS ---
-INFO:     127.0.0.1:58284 - "GET /api/health HTTP/1.1" 200 OK
-WARNING:main:RAILWAY CORS: Request from origin: https://campscout-demo.surge.sh, method: OPTIONS, path: /api/rec-areas
-WARNING:main:RAILWAY CORS: All request headers: {'host': 'localhost:8000', 'user-agent': 'curl/8.7.1', 'accept': '*/*', 'origin': 'https://campscout-demo.surge.sh', 'access-control-request-method': 'POST', 'access-control-request-headers': 'Content-Type'}
-ERROR:main:🎯 FRONTEND REQUEST DETECTED: OPTIONS /api/rec-areas from https://campscout-demo.surge.sh
-ERROR:main:🎯 FRONTEND REQUEST HEADERS: {'host': 'localhost:8000', 'user-agent': 'curl/8.7.1', 'accept': '*/*', 'origin': 'https://campscout-demo.surge.sh', 'access-control-request-method': 'POST', 'access-control-request-headers': 'Content-Type'}
-WARNING:main:RAILWAY CORS: Handling OPTIONS preflight from: https://campscout-demo.surge.sh
-WARNING:main:RAILWAY CORS: OPTIONS response headers: {'content-length': '0', 'content-type': 'text/plain; charset=utf-8', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD', 'access-control-allow-headers': '*', 'access-control-max-age': '86400', 'access-control-allow-credentials': 'false', 'vary': 'Origin', 'x-railway-cors': 'enabled', 'x-forwarded-proto': 'https'}
-ERROR:main:🎯 FRONTEND OPTIONS RESPONSE: {'content-length': '0', 'content-type': 'text/plain; charset=utf-8', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD', 'access-control-allow-headers': '*', 'access-control-max-age': '86400', 'access-control-allow-credentials': 'false', 'vary': 'Origin', 'x-railway-cors': 'enabled', 'x-forwarded-proto': 'https'}
-INFO:     127.0.0.1:58324 - "OPTIONS /api/rec-areas HTTP/1.1" 200 OK
-WARNING:main:RAILWAY CORS: Request from origin: https://campscout-demo.surge.sh, method: POST, path: /api/rec-areas
-WARNING:main:RAILWAY CORS: All request headers: {'host': 'localhost:8000', 'user-agent': 'curl/8.7.1', 'accept': '*/*', 'origin': 'https://campscout-demo.surge.sh', 'content-type': 'application/json', 'content-length': '44'}
-ERROR:main:🎯 FRONTEND REQUEST DETECTED: POST /api/rec-areas from https://campscout-demo.surge.sh
-ERROR:main:🎯 FRONTEND REQUEST HEADERS: {'host': 'localhost:8000', 'user-agent': 'curl/8.7.1', 'accept': '*/*', 'origin': 'https://campscout-demo.surge.sh', 'content-type': 'application/json', 'content-length': '44'}
-INFO:camply.providers.recreation_dot_gov.recdotgov_provider:Searching for Recreation Areas: "Yellowstone"
-INFO:camply.providers.recreation_dot_gov.recdotgov_provider:12 recreation areas found.
-INFO:camply.utils.logging_utils:⛰  Bald Ridge Trail, WY (#14685)
-INFO:camply.utils.logging_utils:⛰  Beartooth Highway - Wyoming, WY (#13573)
-INFO:camply.utils.logging_utils:⛰  Beartooth Highway, MT (#13571)
-INFO:camply.utils.logging_utils:⛰  Bighorn Scenic Byway, WY (#13578)
-INFO:camply.utils.logging_utils:⛰  Buffalo Bill Cody Scenic Byway, WY (#13591)
-INFO:camply.utils.logging_utils:⛰  Clarks Fork of The Yellowstone, WY (#16709)
-INFO:camply.utils.logging_utils:⛰  McCullough PeaksWild Horse Herd Management Area, WY (#14733)
-INFO:camply.utils.logging_utils:⛰  N.F. Shoshone, WY (#16710)
-INFO:camply.utils.logging_utils:⛰  National Elk Refuge, WY (#1532)
-INFO:camply.utils.logging_utils:⛰  Newton Lakes, WY (#1991)
-INFO:camply.utils.logging_utils:⛰  Sheep Mountain Trail, WY (#16708)
-INFO:camply.utils.logging_utils:⛰  Wyoming Centennial Scenic Byway, WY (#13902)
-WARNING:main:RAILWAY CORS: Original response headers: {'content-length': '605', 'content-type': 'application/json'}
-WARNING:main:SETTING CORS header: Access-Control-Allow-Origin = *
-WARNING:main:SETTING CORS header: access-control-allow-origin = *
-WARNING:main:SETTING CORS header: Access-Control-Allow-Methods = GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD
-WARNING:main:SETTING CORS header: Access-Control-Allow-Headers = *
-WARNING:main:SETTING CORS header: Access-Control-Expose-Headers = *
-WARNING:main:SETTING CORS header: Vary = Origin
-WARNING:main:RAILWAY CORS: Final response headers: {'content-length': '605', 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD', 'access-control-allow-headers': '*', 'access-control-expose-headers': '*', 'vary': 'Origin'}
-ERROR:main:🎯 FRONTEND FINAL RESPONSE: POST /api/rec-areas
-ERROR:main:🎯 FRONTEND FINAL HEADERS: {'content-length': '605', 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD', 'access-control-allow-headers': '*', 'access-control-expose-headers': '*', 'vary': 'Origin'}
-INFO:     127.0.0.1:58364 - "POST /api/rec-areas HTTP/1.1" 200 OK
+WARNING:main:CORS test endpoint called
+INFO:     127.0.0.1:50740 - "GET /api/cors-test?test_param=hello HTTP/1.1" 200 OK
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [6526]
+INFO:     Finished server process [38768]
