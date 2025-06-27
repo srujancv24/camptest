@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CORS Test</title>
+</head>
+
+<body>
+    <h1>CORS Test</h1>
+    <button onclick="testCORS()">Test CORS</button>
+    <div id="result"></div>
+
+    <script>
+        async function testCORS() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                // Test the CORS test endpoint
+                const response = await fetch('http://localhost:8000/api/cors-test', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                resultDiv.innerHTML = `<p style="color: green;">SUCCESS: ${JSON.stringify(data)}</p>`;
+
+                // Also test rec-areas
+                const recResponse = await fetch('http://localhost:8000/api/rec-areas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_string: "Yellowstone",
+                        state: "WY"
+                    })
+                });
+
+                const recData = await recResponse.json();
+                resultDiv.innerHTML += `<p style="color: green;">REC AREAS SUCCESS: ${JSON.stringify(recData)}</p>`;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">ERROR: ${error.message}</p>`;
+                console.error('CORS Error:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>

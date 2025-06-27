@@ -22,23 +22,9 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# ==============================================================================
-# TEMPORARY DEBUGGING - ADD THESE LINES
-# ==============================================================================
-print("--- APPLICATION SCRIPT IS STARTING TO EXECUTE ---") 
-logging.basicConfig(level=logging.INFO) # Temporarily force INFO level logging
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# This will print the raw value from the environment, or None if it's not found
-raw_cors_env = os.getenv("CORS_ORIGINS")
-print(f"--- RAW VALUE FROM os.getenv('CORS_ORIGINS'): {raw_cors_env} ---")
-
-# Try to disable Railway's automatic CORS handling
-os.environ["RAILWAY_DISABLE_CORS"] = "true"
-os.environ["DISABLE_CORS"] = "true"
-os.environ["NO_CORS"] = "true"
-print("--- ATTEMPTING TO DISABLE RAILWAY CORS ---")
-# ==============================================================================
 
 
 # Import camply for real campsite data
@@ -47,10 +33,6 @@ from camply import RecreationDotGov, SearchRecreationDotGov, SearchWindow
 class RecAreaSearchRequest(BaseModel):
     search_string: str
     state: Optional[str] = None
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="CampScout API",
@@ -66,122 +48,24 @@ ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_HOURS", "24")
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 DATABASE_PATH = os.getenv("DATABASE_PATH", "campscout.db")
 
-# CORS Configuration with better error handling
-try:
-    # Hardcode CORS origins as a list for testing
-    CORS_ORIGINS = ["https://campscout-demo.surge.sh"]
-    
-    # Log environment and CORS configuration
-    logger.warning(f"Environment: {ENVIRONMENT}")
-    logger.warning(f"CORS allowed origins configured as: {CORS_ORIGINS}") 
-    
-    # In production, warn if still using localhost
-    if ENVIRONMENT == "production" and any("localhost" in origin for origin in CORS_ORIGINS):
-        logger.error("WARNING: Production environment detected but CORS origins still contain localhost!")
-        
-except Exception as e:
-    # Log any error that happens during the CORS setup
-    logger.error(f"ERROR setting up CORS: {e}")
-    CORS_ORIGINS = ["http://localhost:5173"]  # Fallback
+# CORS Configuration
+CORS_ORIGINS_ENV = os.getenv("CORS_ORIGINS", "https://campscout-demo.surge.sh")
+CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_ENV.split(",")]
 
-logger.info(f"Final CORS allowed origins: {CORS_ORIGINS}")
+logger.info(f"Environment: {ENVIRONMENT}")
+logger.info(f"CORS allowed origins: {CORS_ORIGINS}")
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-# DISABLE ALL CORS MIDDLEWARE - handle it manually
-logger.warning(f"CORS DISABLED - handling manually to override Railway")
-
-# Try multiple approaches to override Railway's CORS
-@app.middleware("http")
-async def railway_cors_override(request, call_next):
-    origin = request.headers.get("origin", "")
-    logger.warning(f"RAILWAY CORS: Request from origin: {origin}, method: {request.method}, path: {request.url.path}")
-    logger.warning(f"RAILWAY CORS: All request headers: {dict(request.headers)}")
-    
-    # Special logging for requests from our frontend
-    if origin == "https://campscout-demo.surge.sh":
-        logger.error(f"🎯 FRONTEND REQUEST DETECTED: {request.method} {request.url.path} from {origin}")
-        logger.error(f"🎯 FRONTEND REQUEST HEADERS: {dict(request.headers)}")
-    
-    # Handle preflight requests with maximum compatibility
-    if request.method == "OPTIONS":
-        logger.warning(f"RAILWAY CORS: Handling OPTIONS preflight from: {origin}")
-        
-        # Try to create the most permissive response possible
-        response = Response(
-            content="",
-            status_code=200,
-            media_type="text/plain"
-        )
-        
-        # Set multiple variations of CORS headers to ensure one works
-        cors_headers = {
-            "Access-Control-Allow-Origin": "*",
-            "access-control-allow-origin": "*",
-            "ACCESS-CONTROL-ALLOW-ORIGIN": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
-            "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
-            "Access-Control-Allow-Headers": "*",
-            "access-control-allow-headers": "*",
-            "Access-Control-Max-Age": "86400",
-            "Access-Control-Allow-Credentials": "false",
-            "Vary": "Origin",
-            "Content-Length": "0",
-            # Try Railway-specific headers
-            "X-Railway-CORS": "enabled",
-            "X-Forwarded-Proto": "https"
-        }
-        
-        for key, value in cors_headers.items():
-            response.headers[key] = value
-        
-        logger.warning(f"RAILWAY CORS: OPTIONS response headers: {dict(response.headers)}")
-        
-        # Special logging for frontend OPTIONS requests
-        if origin == "https://campscout-demo.surge.sh":
-            logger.error(f"🎯 FRONTEND OPTIONS RESPONSE: {dict(response.headers)}")
-        
-        return response
-    
-    # Process normal requests
-    response = await call_next(request)
-    
-    # Log original response headers
-    logger.warning(f"RAILWAY CORS: Original response headers: {dict(response.headers)}")
-    
-    # Remove any existing CORS headers that Railway might have added
-    headers_to_remove = []
-    for key in response.headers.keys():
-        if key.lower().startswith('access-control-'):
-            headers_to_remove.append(key)
-    
-    for header in headers_to_remove:
-        logger.warning(f"REMOVING Railway header: {header} = {response.headers[header]}")
-        del response.headers[header]
-    
-    # Force CORS headers on all responses with multiple variations
-    cors_response_headers = {
-        "Access-Control-Allow-Origin": "*",
-        "access-control-allow-origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Expose-Headers": "*",
-        "Vary": "Origin"
-    }
-    
-    for key, value in cors_response_headers.items():
-        response.headers[key] = value
-        logger.warning(f"SETTING CORS header: {key} = {value}")
-    
-    logger.warning(f"RAILWAY CORS: Final response headers: {dict(response.headers)}")
-    
-    # Special logging for frontend responses
-    if origin == "https://campscout-demo.surge.sh":
-        logger.error(f"🎯 FRONTEND FINAL RESPONSE: {request.method} {request.url.path}")
-        logger.error(f"🎯 FRONTEND FINAL HEADERS: {dict(response.headers)}")
-    
-    return response
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
+    allow_headers=["*"],
+)
 
 # Security
 security = HTTPBearer()
