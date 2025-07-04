@@ -1,5 +1,6 @@
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
+import TestEnhancedCards from './components/TestEnhancedCards.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import AuthPage from './pages/AuthPage.jsx';
@@ -47,6 +48,7 @@ const AppRoutes = () => {
         </PublicRoute>
       } />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/test-cards" element={<TestEnhancedCards />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

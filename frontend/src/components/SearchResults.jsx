@@ -1,6 +1,6 @@
 import CampgroundCard from './CampgroundCard.jsx';
 
-const SearchResults = ({ results, totalCount, loading, onLoadMore, hasMore }) => {
+const SearchResults = ({ results, totalCount, loading, onLoadMore, hasMore, searchParams }) => {
     if (loading && results.length === 0) {
         return (
             <div className="text-center py-12">
@@ -54,7 +54,7 @@ const SearchResults = ({ results, totalCount, loading, onLoadMore, hasMore }) =>
                     <CampgroundCard
                         key={campground.id || campground.recreation_gov_id || index}
                         campground={campground}
-                        searchParams={results.searchParams}
+                        searchParams={searchParams}
                     />
                 ))}
             </div>

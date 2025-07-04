@@ -278,13 +278,13 @@ async def cors_test_options():
 
 @app.get("/api/cors-bypass-test")
 async def cors_bypass_test():
-    """Test bypassing Railway CORS with custom response"""
-    logger.warning("CORS bypass test endpoint called")
+    """Test CORS configuration with custom response headers"""
+    logger.warning("CORS test endpoint called")
     
     # Create a custom response with explicit CORS headers
     response = JSONResponse(
         content={
-            "message": "CORS bypass test working!",
+            "message": "CORS test working!",
             "timestamp": datetime.now().isoformat(),
         }
     )
@@ -294,7 +294,7 @@ async def cors_bypass_test():
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "*"
     
-    logger.warning(f"CORS bypass test response headers: {dict(response.headers)}")
+    logger.warning(f"CORS test response headers: {dict(response.headers)}")
     return response
 
 # Authentication endpoints
@@ -566,9 +566,9 @@ async def search_campgrounds_with_camply(location: str, state: str = None) -> Li
         # Search for campgrounds
         if state:
             campgrounds = provider.find_campgrounds(state=state.upper())
-        else:
-            # If no state specified, try to extract from location or default to popular states
-            campgrounds = provider.find_campgrounds(state="CA")  # Default to CA for now
+        #else:
+        #    # If no state specified, try to extract from location or default to popular states
+        #    campgrounds = provider.find_campgrounds(state="CA")  # Default to CA for now
         
         # Filter by location if specified (more flexible matching)
         if location:
@@ -610,7 +610,7 @@ async def search_campgrounds_with_camply(location: str, state: str = None) -> Li
             campsite_info = CampsiteInfo(
                 id=str(cg.facility_id),
                 name=cg.facility_name,
-                description=getattr(cg, 'description', '') or f"Campground in {getattr(cg, 'state', 'Unknown')}",
+                description=getattr(cg, 'description', '') or "No description available.",
                 state=getattr(cg, 'state', ''),
                 city=getattr(cg, 'city', ''),
                 latitude=getattr(cg, 'latitude', None),
@@ -656,7 +656,50 @@ NATIONAL_PARKS_TO_STATE = {
     'OLYMPIC NATIONAL PARK': 'WA',
     'GLACIER NATIONAL PARK': 'MT',
     'JOSHUA TREE NATIONAL PARK': 'CA',
-    # ... add more as needed ...
+    'NORTH CASCADES NATIONAL PARK': 'WA',
+    'MOUNT RAINIER NATIONAL PARK': 'WA',
+    'CRATER LAKE NATIONAL PARK': 'OR',
+    'BRYCE CANYON NATIONAL PARK': 'UT',
+    'ARCHES NATIONAL PARK': 'UT',
+    'CANYONLANDS NATIONAL PARK': 'UT',
+    'CAPITOL REEF NATIONAL PARK': 'UT',
+    'DEATH VALLEY NATIONAL PARK': 'CA',
+    'SEQUOIA NATIONAL PARK': 'CA',
+    'KINGS CANYON NATIONAL PARK': 'CA',
+    'GRAND TETON NATIONAL PARK': 'WY',
+    'BADLANDS NATIONAL PARK': 'SD',
+    'WIND CAVE NATIONAL PARK': 'SD',
+    'THEODORE ROOSEVELT NATIONAL PARK': 'ND',
+    'VOYAGEURS NATIONAL PARK': 'MN',
+    'ISLE ROYALE NATIONAL PARK': 'MI',
+    'MAMMOTH CAVE NATIONAL PARK': 'KY',
+    'HOT SPRINGS NATIONAL PARK': 'AR',
+    'EVERGLADES NATIONAL PARK': 'FL',
+    'BISCAYNE NATIONAL PARK': 'FL',
+    'DRY TORTUGAS NATIONAL PARK': 'FL',
+    'SHENANDOAH NATIONAL PARK': 'VA',
+    'GREAT SAND DUNES NATIONAL PARK': 'CO',
+    'MESA VERDE NATIONAL PARK': 'CO',
+    'BLACK CANYON OF THE GUNNISON NATIONAL PARK': 'CO',
+    'PINNACLES NATIONAL PARK': 'CA',
+    'CHANNEL ISLANDS NATIONAL PARK': 'CA',
+    'REDWOOD NATIONAL PARK': 'CA',
+    'LASSEN VOLCANIC NATIONAL PARK': 'CA',
+    'CARLSBAD CAVERNS NATIONAL PARK': 'NM',
+    'GUADALUPE MOUNTAINS NATIONAL PARK': 'TX',
+    'BIG BEND NATIONAL PARK': 'TX',
+    'PETRIFIED FOREST NATIONAL PARK': 'AZ',
+    'SAGUARO NATIONAL PARK': 'AZ',
+    'DENALI NATIONAL PARK': 'AK',
+    'KENAI FJORDS NATIONAL PARK': 'AK',
+    'KATMAI NATIONAL PARK': 'AK',
+    'LAKE CLARK NATIONAL PARK': 'AK',
+    'GATES OF THE ARCTIC NATIONAL PARK': 'AK',
+    'KOBUK VALLEY NATIONAL PARK': 'AK',
+    'WRANGELL-ST. ELIAS NATIONAL PARK': 'AK',
+    'GLACIER BAY NATIONAL PARK': 'AK',
+    'HALEAKALA NATIONAL PARK': 'HI',
+    'HAWAII VOLCANOES NATIONAL PARK': 'HI'
 }
 RECREATION_AREAS_TO_STATE = {
     'LAKE TAHOE': 'CA',
@@ -680,7 +723,24 @@ async def search_campsites(request: CampsiteSearchRequest):
         if request.rec_area_id:
             logger.info(f"Searching with rec_area_ids: {request.rec_area_id}")
             campgrounds = provider.find_campgrounds(rec_area_id=[int(rec_id) for rec_id in request.rec_area_id])
-            all_campgrounds.extend(campgrounds)
+            
+            # Convert raw campground objects to CampsiteInfo format
+            for cg in campgrounds:
+                campsite_info = CampsiteInfo(
+                    id=str(cg.facility_id),
+                    name=cg.facility_name,
+                    description=getattr(cg, 'description', '') or "No description available.",
+                    state=getattr(cg, 'state', ''),
+                    city=getattr(cg, 'city', ''),
+                    latitude=getattr(cg, 'latitude', None),
+                    longitude=getattr(cg, 'longitude', None),
+                    activities=getattr(cg, 'activities', []) or ["Camping"],
+                    phone=getattr(cg, 'phone', ''),
+                    email=getattr(cg, 'email', ''),
+                    reservation_url=f"https://www.recreation.gov/camping/campgrounds/{cg.facility_id}",
+                    recreation_gov_id=str(cg.facility_id)
+                )
+                all_campgrounds.append(campsite_info)
 
         else: # Fallback to location search if no rec_area_id
             state = None
@@ -721,24 +781,8 @@ async def search_campsites(request: CampsiteSearchRequest):
                 if len(all_campgrounds) >= (request.limit or 20):
                     break
 
-        # Convert to our CampsiteInfo format
-        campsite_infos = []
-        for cg in all_campgrounds:
-            campsite_info = CampsiteInfo(
-                id=str(cg.facility_id),
-                name=cg.facility_name,
-                description=getattr(cg, 'description', '') or f"Campground in {getattr(cg, 'state', 'Unknown')}",
-                state=getattr(cg, 'state', ''),
-                city=getattr(cg, 'city', ''),
-                latitude=getattr(cg, 'latitude', None),
-                longitude=getattr(cg, 'longitude', None),
-                activities=getattr(cg, 'activities', []) or ["Camping"],
-                phone=getattr(cg, 'phone', ''),
-                email=getattr(cg, 'email', ''),
-                reservation_url=f"https://www.recreation.gov/camping/campgrounds/{cg.facility_id}",
-                recreation_gov_id=str(cg.facility_id)
-            )
-            campsite_infos.append(campsite_info)
+        # all_campgrounds already contains CampsiteInfo objects from search_campgrounds_with_camply
+        campsite_infos = all_campgrounds
 
         seen = set()
         unique_campsites = [c for c in campsite_infos if c.id not in seen and not seen.add(c.id)]
@@ -842,17 +886,43 @@ async def check_availability(
         
         for site in available_sites:
             booking_date = getattr(site, 'booking_date', None)
+            booking_end_date = getattr(site, 'booking_end_date', None)
             if booking_date:
                 available_dates.add(str(booking_date))
+            
+            # Extract permitted equipment list
+            permitted_equipment = getattr(site, 'permitted_equipment', [])
+            if isinstance(permitted_equipment, str):
+                permitted_equipment = [permitted_equipment]
+            elif not isinstance(permitted_equipment, list):
+                permitted_equipment = []
+            
+            # Get campsite occupancy (min, max)
+            occupancy = getattr(site, 'campsite_occupancy', None)
+            if occupancy and hasattr(occupancy, '__iter__') and len(occupancy) >= 2:
+                occupancy_min, occupancy_max = occupancy[0], occupancy[1]
+            else:
+                occupancy_min, occupancy_max = None, None
             
             availability_data.append({
                 "campsite_id": getattr(site, 'campsite_id', ''),
                 "campsite_title": getattr(site, 'campsite_title', ''),
+                "campsite_site_name": getattr(site, 'campsite_site_name', ''),
+                "campsite_loop_name": getattr(site, 'campsite_loop_name', ''),
+                "campsite_type": getattr(site, 'campsite_type', ''),
+                "campsite_use_type": getattr(site, 'campsite_use_type', ''),
                 "booking_date": str(booking_date) if booking_date else '',
+                "booking_end_date": str(booking_end_date) if booking_end_date else '',
+                "booking_nights": getattr(site, 'booking_nights', nights),
                 "booking_url": getattr(site, 'booking_url', ''),
                 "recreation_area": getattr(site, 'recreation_area', ''),
+                "recreation_area_id": getattr(site, 'recreation_area_id', ''),
                 "facility_name": getattr(site, 'facility_name', ''),
-                "booking_nights": getattr(site, 'booking_nights', nights)
+                "facility_id": getattr(site, 'facility_id', ''),
+                "availability_status": getattr(site, 'availability_status', 'Available'),
+                "permitted_equipment": permitted_equipment,
+                "campsite_occupancy_min": occupancy_min,
+                "campsite_occupancy_max": occupancy_max
             })
         
         # Convert available_dates set to sorted list

@@ -241,6 +241,16 @@ const CampgroundSearch = ({ onSearchResults }) => {
         setSelectedRecAreas(newSelectedRecAreas);
     };
 
+    const handleSelectAll = () => {
+        if (selectedRecAreas.size === recAreas.length) {
+            // If all are selected, deselect all
+            setSelectedRecAreas(new Set());
+        } else {
+            // Select all
+            setSelectedRecAreas(new Set(recAreas.map(area => area.id)));
+        }
+    };
+
     // Handle location input with autocomplete
     const handleLocationInputChange = (e) => {
         const value = e.target.value;
@@ -518,7 +528,16 @@ const CampgroundSearch = ({ onSearchResults }) => {
                     )}
                     {recAreas.length > 0 && (
                         <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                            <h4 className="text-sm font-medium text-gray-700 mb-2">Select Recreation Areas:</h4>
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-sm font-medium text-gray-700">Select Recreation Areas:</h4>
+                                <button
+                                    type="button"
+                                    onClick={handleSelectAll}
+                                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition duration-150"
+                                >
+                                    {selectedRecAreas.size === recAreas.length ? 'Deselect All' : 'Select All'}
+                                </button>
+                            </div>
                             <div className="space-y-2">
                                 {recAreas.map((area) => (
                                     <div key={area.id} className="flex items-center">
@@ -671,7 +690,7 @@ const CampgroundSearch = ({ onSearchResults }) => {
                         {/* Main Search Button */}
                         <button
                             type="submit"
-                            disabled={loading || availabilityLoading}
+                            disabled={loading || availabilityLoading || recAreas.length === 0 || selectedRecAreas.size === 0}
                             className="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 text-lg font-medium"
                         >
                             {loading ? (
@@ -686,7 +705,12 @@ const CampgroundSearch = ({ onSearchResults }) => {
                                 </span>
                             ) : (
                                 <span className="flex items-center justify-center">
-                                    🔍 Search Campgrounds with Live Availability
+                                    {recAreas.length === 0 ?
+                                        '🔍 Click "Check" first to find recreation areas' :
+                                        selectedRecAreas.size === 0 ?
+                                            '🔍 Select at least one recreation area to search' :
+                                            '🔍 Search Campgrounds with Live Availability'
+                                    }
                                 </span>
                             )}
                         </button>

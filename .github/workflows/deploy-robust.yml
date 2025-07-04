@@ -42,7 +42,7 @@ jobs:
         cd frontend
         npm run build
       env:
-        VITE_API_URL: https://campscout-up-demo.railway.app
+        VITE_API_URL: https://your-app.onrender.com
         NODE_ENV: production
     
     - name: Deploy to GitHub Pages

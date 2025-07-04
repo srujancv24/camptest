@@ -1,11 +1,14 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import CampsiteCard from './CampsiteCard.jsx';
 import { useToast } from './Toast.jsx';
 
 const CampgroundCard = ({ campground, showCreateAlert = true, searchParams }) => {
     const { getAuthToken } = useAuth();
     const { showSuccess, showError } = useToast();
+
+
     const [showAlertForm, setShowAlertForm] = useState(false);
     const [alertData, setAlertData] = useState({
         start_date: '',
@@ -18,8 +21,10 @@ const CampgroundCard = ({ campground, showCreateAlert = true, searchParams }) =>
     const [availability, setAvailability] = useState(null);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
     const [availabilityError, setAvailabilityError] = useState('');
+    const [showAllSites, setShowAllSites] = useState(false);
 
     useEffect(() => {
+
         if (!campground.recreation_gov_id || !searchParams?.start_date || !searchParams?.end_date || !searchParams?.nights) return;
         setAvailabilityLoading(true);
         setAvailabilityError('');
@@ -30,8 +35,14 @@ const CampgroundCard = ({ campground, showCreateAlert = true, searchParams }) =>
                 nights: searchParams.nights
             }
         })
-            .then(res => setAvailability(res.data))
-            .catch(err => setAvailabilityError('Failed to fetch availability'))
+            .then(res => {
+
+                setAvailability(res.data);
+            })
+            .catch(err => {
+                console.error('Availability error:', err);
+                setAvailabilityError('Failed to fetch availability');
+            })
             .finally(() => setAvailabilityLoading(false));
     }, [campground.recreation_gov_id, searchParams]);
 
@@ -86,106 +97,243 @@ const CampgroundCard = ({ campground, showCreateAlert = true, searchParams }) =>
         const parts = [];
         if (campground.city) parts.push(campground.city);
         if (campground.state) parts.push(campground.state);
-        return parts.length > 0 ? parts.join(', ') : 'Location not specified';
+
+        // If no city/state, try to use coordinates first, then extract from name
+        if (parts.length === 0) {
+            if (campground.latitude && campground.longitude) {
+                return `${campground.latitude.toFixed(2)}°, ${campground.longitude.toFixed(2)}°`;
+            }
+            if (campground.name && campground.name.toLowerCase().includes('national')) {
+                return 'National Park/Forest';
+            }
+            return 'Location not specified';
+        }
+
+        return parts.join(', ');
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-4">
+        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border border-gray-100">
+            {/* Header with enhanced styling */}
+            <div className="flex justify-between items-start mb-6">
                 <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        {campground.name || 'Unnamed Campground'}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-1">
-                        📍 {getLocationString(campground)}
-                    </p>
+                    <div className="mb-2">
+                        <h3 className="text-xl font-bold text-gray-900">
+                            {campground.name || 'Unnamed Campground'}
+                        </h3>
+                    </div>
+                    <div className="flex items-center gap-1 text-gray-600 mb-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-sm font-medium">{getLocationString(campground)}</span>
+                    </div>
                     {campground.latitude && campground.longitude && (
-                        <p className="text-xs text-gray-500">
-                            Coordinates: {campground.latitude.toFixed(4)}, {campground.longitude.toFixed(4)}
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                            </svg>
+                            {campground.latitude.toFixed(4)}, {campground.longitude.toFixed(4)}
                         </p>
                     )}
                 </div>
 
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {campground.state || 'Unknown State'}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                    {campground.recreation_gov_id && (
+                        <span className="text-xs text-gray-500 font-mono">
+                            ID: {campground.recreation_gov_id}
+                        </span>
+                    )}
+                </div>
             </div>
 
-            {/* Description */}
+            {/* Enhanced Description */}
             {campground.description && (
-                <div className="mb-4">
-                    <p className="text-sm text-gray-700 line-clamp-3">
-                        {(() => {
-                            // Strip HTML tags and decode entities
-                            const cleanDescription = campground.description
-                                .replace(/<[^>]*>/g, ' ')
-                                .replace(/&nbsp;/g, ' ')
-                                .replace(/&amp;/g, '&')
-                                .replace(/&lt;/g, '<')
-                                .replace(/&gt;/g, '>')
-                                .replace(/\s+/g, ' ')
-                                .trim();
-                            return cleanDescription.length > 200
-                                ? `${cleanDescription.substring(0, 200)}...`
-                                : cleanDescription;
-                        })()}
-                    </p>
+                <div className="mb-6">
+                    <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                            {(() => {
+                                // Strip HTML tags and decode entities
+                                const cleanDescription = campground.description
+                                    .replace(/<[^>]*>/g, ' ')
+                                    .replace(/&nbsp;/g, ' ')
+                                    .replace(/&amp;/g, '&')
+                                    .replace(/&lt;/g, '<')
+                                    .replace(/&gt;/g, '>')
+                                    .replace(/\s+/g, ' ')
+                                    .trim();
+
+                                // Filter out generic/unhelpful text
+                                if (cleanDescription.toLowerCase().includes('campground in unknown') ||
+                                    cleanDescription.toLowerCase() === 'unknown' ||
+                                    cleanDescription.length < 10) {
+                                    return 'No description available.';
+                                }
+
+                                return cleanDescription.length > 250
+                                    ? `${cleanDescription.substring(0, 250)}...`
+                                    : cleanDescription;
+                            })()}
+                        </p>
+                    </div>
                 </div>
             )}
 
-            {/* Facility Information */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-2xl mb-1">
-                        {campground.activities && campground.activities.length > 0 ? campground.activities.length : 'N/A'}
-                    </div>
-                    <div className="text-xs text-gray-600 font-medium">Activities</div>
-                </div>
 
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-2xl mb-1">
-                        {campground.reservation_url ? '✅' : '❌'}
-                    </div>
-                    <div className="text-xs text-gray-600 font-medium">Reservable</div>
+
+            {/* Enhanced Activities Section */}
+            <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <h4 className="text-sm font-bold text-gray-900">Available Activities</h4>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {campground.activities && campground.activities.length > 0 ? (
+                        campground.activities.slice(0, 6).map((activity, index) => (
+                            <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                {activity}
+                            </span>
+                        ))
+                    ) : (
+                        <span className="text-sm text-gray-500 italic">No activities listed</span>
+                    )}
+                    {campground.activities && campground.activities.length > 6 && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            +{campground.activities.length - 6} more
+                        </span>
+                    )}
                 </div>
             </div>
 
-            {/* Activities */}
-            <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">🎯 Activities</h4>
-                <p className="text-sm text-gray-600">
-                    {formatActivities(campground.activities)}
-                </p>
-            </div>
+            {/* Enhanced Availability Section */}
+            <div className="mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                    <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                    </svg>
+                    <h4 className="text-sm font-bold text-gray-900">Availability Status</h4>
+                </div>
 
-            {/* --- Availability Section --- */}
-            <div className="mb-4">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">⏰ Availability</h4>
-                {availabilityLoading && <div className="text-blue-600">Loading availability...</div>}
-                {availabilityError && <div className="text-red-500">{availabilityError}</div>}
-                {availability && availability.success && (
-                    <div>
-                        <div className="text-green-700 font-semibold">
-                            {availability.total_sites_found} site{availability.total_sites_found !== 1 ? 's' : ''} available
+                {/* Show availability check button if no search params */}
+                {(!searchParams?.start_date || !searchParams?.end_date) && (
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <div className="text-blue-800 font-medium mb-2">
+                            Check Availability
                         </div>
-                        <div className="text-sm text-gray-700">
-                            Dates: {availability.available_dates && availability.available_dates.length > 0
-                                ? availability.available_dates.slice(0, 3).join(', ') + (availability.available_dates.length > 3 ? '...' : '')
-                                : 'None'}
+                        <div className="text-sm text-blue-700 mb-3">
+                            Search with dates to see detailed campsite availability and enhanced cards.
                         </div>
-                        <a
-                            href={campground.reservation_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 underline text-sm"
-                        >
-                            Book on Recreation.gov
-                        </a>
+                        <div className="bg-blue-100 p-2 rounded text-xs text-blue-800">
+                            💡 Tip: Use the search form above with check-in/check-out dates to see enhanced campsite cards with detailed information!
+                        </div>
                     </div>
                 )}
+
+                {availabilityLoading && <div className="text-blue-600">Loading availability...</div>}
+                {availabilityError && <div className="text-red-500">{availabilityError}</div>}
+                {availability && availability.success && availability.total_sites_found > 0 && (
+                    <div className="space-y-3">
+                        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                            <div className="text-green-800 font-semibold mb-1">
+                                ✅ {availability.total_sites_found} site{availability.total_sites_found !== 1 ? 's' : ''} available
+                            </div>
+                            <div className="text-sm text-green-700">
+                                {availability.total_available_dates} date{availability.total_available_dates !== 1 ? 's' : ''} with availability
+                            </div>
+                        </div>
+
+                        {/* Available Sites Details */}
+                        {availability.available_sites && availability.available_sites.length > 0 && (
+                            <div className="space-y-2">
+                                <h5 className="text-sm font-medium text-gray-900">Available Campsites:</h5>
+                                <div className="max-h-64 overflow-y-auto space-y-2">
+                                    {(showAllSites ? availability.available_sites : availability.available_sites.slice(0, 3)).map((site, index) => (
+                                        <CampsiteCard
+                                            key={index}
+                                            site={site}
+                                            campgroundName={campground.name}
+                                        />
+                                    ))}
+                                    {availability.available_sites.length > 3 && (
+                                        <div className="text-center py-2">
+                                            <button
+                                                onClick={() => setShowAllSites(!showAllSites)}
+                                                className="text-blue-600 hover:text-blue-800 underline text-sm font-medium"
+                                            >
+                                                {showAllSites
+                                                    ? 'Show Less'
+                                                    : `Show All ${availability.available_sites.length} Sites`
+                                                }
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* General booking link */}
+                        <div className="pt-2 border-t border-gray-200">
+                            <a
+                                href={campground.reservation_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-blue-600 hover:text-blue-800 underline text-sm font-medium"
+                            >
+                                View All Sites on Recreation.gov →
+                            </a>
+                        </div>
+                    </div>
+                )}
+                {availability && availability.success && availability.total_sites_found === 0 && (
+                    <div className="space-y-3">
+                        <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                            <div className="text-orange-800 font-semibold mb-1">
+                                ❌ No availability for selected dates
+                            </div>
+                            <div className="text-sm text-orange-700">
+                                Try different dates or check back later for cancellations.
+                            </div>
+                        </div>
+
+                        {campground.reservation_url && (
+                            <div className="mt-2">
+                                <a
+                                    href={campground.reservation_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center text-orange-600 hover:text-orange-800 underline text-sm font-medium"
+                                >
+                                    Check Recreation.gov for updates →
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* API error message */}
                 {availability && !availability.success && (
-                    <div className="text-gray-500">No availability for selected dates.</div>
+                    <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                        <div className="text-red-800 font-semibold mb-1">
+                            ⚠️ Unable to check availability
+                        </div>
+                        <div className="text-sm text-red-700">
+                            There was an issue checking availability. Please try again later.
+                        </div>
+                        {campground.reservation_url && (
+                            <div className="mt-2">
+                                <a
+                                    href={campground.reservation_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center text-red-600 hover:text-red-800 underline text-sm font-medium"
+                                >
+                                    Check Recreation.gov directly →
+                                </a>
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
 
@@ -291,17 +439,7 @@ const CampgroundCard = ({ campground, showCreateAlert = true, searchParams }) =>
                 </div>
             )}
 
-            {/* Availability */}
-            {availabilityLoading && <p className="text-sm text-gray-500">Checking availability...</p>}
-            {availabilityError && <p className="text-sm text-red-500">{availabilityError}</p>}
-            {availability && (
-                <div className="mb-4 p-4 bg-green-50 rounded-lg">
-                    <h4 className="text-sm font-medium text-green-800 mb-2">Availability</h4>
-                    <p className="text-sm text-green-700">
-                        {availability.available ? 'Sites are available!' : 'No sites available for the selected dates.'}
-                    </p>
-                </div>
-            )}
+
 
             {/* Actions */}
             <div className="flex space-x-3">

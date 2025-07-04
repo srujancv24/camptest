@@ -334,6 +334,7 @@ const Dashboard = () => {
                                 loading={searchLoading}
                                 onLoadMore={handleLoadMore}
                                 hasMore={searchResults.length < totalCount}
+                                searchParams={lastSearchParams}
                             />
                         </div>
                     )}
